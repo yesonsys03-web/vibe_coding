@@ -193,27 +193,18 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "파일 없음", "먼저 .docx 파일을 로드하세요.")
             return
 
-        stem = Path(self._loaded_path).stem
-        default_name = f"{stem}_styled_t{self._template_id}.docx"
-        default_path = str(Path(self._loaded_path).parent / default_name)
-
-        save_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "결과 파일 저장 위치",
-            default_path,
-            "Word 문서 (*.docx)",
-        )
-        if not save_path:
-            return  # 사용자가 저장을 취소함
-
-        self._output_path = save_path
+        # 1. 임시 경로에 먼저 저장
+        session_id = str(Path(self._loaded_path).stem)
+        temp_dir = Path(tempfile.gettempdir()) / "docstyle_pro"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        self._temp_output_path = str(temp_dir / f"{session_id}_t{self._template_id}.docx")
 
         tpl_name = self._center.get_template_info(self._template_id)["name"]
         settings = self._left.settings_panel.get_settings()
         
         dlg = ProgressDialog(
             input_path=self._loaded_path,
-            output_path=self._output_path,
+            output_path=self._temp_output_path,
             template_id=self._template_id,
             template_name=tpl_name,
             custom_settings=settings,
@@ -224,17 +215,59 @@ class MainWindow(QMainWindow):
 
     def _on_convert_done(self, result):
         if result.success:
-            self._right.show_result(
-                output_path=result.output_path,
-                element_count=result.element_count,
-                image_count=result.image_count,
-                template_id=result.template_id,
+            import subprocess
+            import shutil
+            
+            # 2. 결과물(DOCX)을 맥 기본 앱(Word, Pages 등)으로 바로 열기
+            # macOS 권한 팝업 문제를 우회하기 위해 PDF 변환을 생략합니다.
+            subprocess.run(["open", result.output_path])
+                
+            # 3. 사용자에게 저장 여부 확인
+            reply = QMessageBox.question(
+                self, '미리보기 확인', 
+                "미리보기 창이 열렸습니다.\n이 디자인으로 문서를 저장하시겠습니까?",
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard,
+                QMessageBox.StandardButton.Save
             )
-            self._left.drop_zone.set_loaded(self._loaded_path, result.image_count)
-            self._status.showMessage(
-                f"✅ 변환 완료  ·  요소 {result.element_count}개  ·  "
-                f"이미지 {result.image_count}개  ·  {Path(result.output_path).name}"
-            )
+            
+            if reply == QMessageBox.StandardButton.Save:
+                # 4. 저장 위치 묻기
+                stem = Path(self._loaded_path).stem
+                default_name = f"{stem}_styled_t{self._template_id}.docx"
+                default_path = str(Path(self._loaded_path).parent / default_name)
+
+                save_path, _ = QFileDialog.getSaveFileName(
+                    self,
+                    "결과 파일 저장 위치",
+                    default_path,
+                    "Word 문서 (*.docx)",
+                )
+                if save_path:
+                    # 임시 파일을 최종 위치로 복사
+                    shutil.copy2(result.output_path, save_path)
+                    
+                    self._right.show_result(
+                        output_path=save_path,
+                        element_count=result.element_count,
+                        image_count=result.image_count,
+                        template_id=result.template_id,
+                    )
+                    self._left.drop_zone.set_loaded(self._loaded_path, result.image_count)
+                    self._status.showMessage(
+                        f"✅ 변환 및 저장 완료  ·  요소 {result.element_count}개  ·  "
+                        f"이미지 {result.image_count}개  ·  {Path(save_path).name}"
+                    )
+                else:
+                    self._status.showMessage("저장 취소됨")
+            else:
+                self._status.showMessage("문서 변경사항이 취소되었습니다.")
+                
+            # 임시 파일 삭제 (클린업)
+            try:
+                Path(result.output_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+
         else:
             if "취소" not in result.error:
                 QMessageBox.critical(self, "변환 실패",

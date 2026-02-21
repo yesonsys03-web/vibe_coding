@@ -51,12 +51,12 @@ const hrPara = (color, sz = 4) =>
 // ─────────────────────────────────────────────
 const bodyText = (text, indent = 0, C) => {
   const isMinimal = C.TYPE === "MINIMAL";
-  const align = C.JUSTIFY ? AlignmentType.JUSTIFY : (isMinimal ? AlignmentType.CENTER : AlignmentType.LEFT);
+  const align = C.JUSTIFY ? AlignmentType.JUSTIFY : AlignmentType.LEFT;
   return new Paragraph({
-    spacing: { before: isMinimal ? 40 : 80, after: isMinimal ? 40 : 80, line: C.LINE_SPACING },
+    spacing: { before: isMinimal ? 60 : 120, after: isMinimal ? 80 : 160, line: C.LINE_SPACING || 360 },
     indent: { left: indent },
     alignment: align,
-    children: [run(text, { size: C.SIZE_BODY || (isMinimal ? 20 : 22), color: C.TEXT }, C)],
+    children: [run(text, { size: C.SIZE_BODY || 20, color: C.TEXT }, C)],
   });
 };
 
@@ -114,33 +114,32 @@ const chapterTitle = (phase, title, sub, C) => {
 };
 
 const h1 = (num, title, C) => {
-  const isTech = C.TYPE === "TECH";
   return new Paragraph({
-    spacing: { before: 360, after: 80 },
+    spacing: { before: 480, after: 120 },
     border: {
-      left: { style: BorderStyle.THICK, size: 24, color: C.ACCENT, space: 8 },
-      bottom: isTech ? noBdr : solidBdr(C.RULE, 3),
+      bottom: solidBdr(C.RULE, 2),
+      left: noBdr,
       top: noBdr,
       right: noBdr,
     },
-    indent: { left: 200 },
+    indent: { left: 0 },
     children: [
-      run(`${num}.  `, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H1 || 28, color: C.ACCENT }, C),
-      run(title, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H1 || 28, color: C.DARK }, C),
+      run(`${num}.  `, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H1 || 32, color: C.ACCENT }, C),
+      run(title, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H1 || 32, color: C.DARK }, C),
     ],
   });
 };
 
 const h2 = (text, C) =>
   new Paragraph({
-    spacing: { before: 240, after: 60 },
-    border: { bottom: solidBdr(C.RULE, 3) },
-    children: [run(text, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H2 || 23, color: C.BLUE }, C)],
+    spacing: { before: 360, after: 100 },
+    border: { bottom: noBdr },
+    children: [run(text, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H2 || 26, color: C.BLUE2 }, C)],
   });
 
 const h3 = (text, C) =>
   new Paragraph({
-    spacing: { before: 180, after: 50 },
+    spacing: { before: 240, after: 80 },
     children: [run(text, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H3 || 22, color: C.DARK }, C)],
   });
 
@@ -149,43 +148,43 @@ const h3 = (text, C) =>
 // ─────────────────────────────────────────────
 const quoteBox = (text, C) =>
   new Paragraph({
-    shading: { fill: C.BG_BOX, type: ShadingType.CLEAR },
-    border: { left: { style: BorderStyle.THICK, size: 18, color: C.BOX_BORDER, space: 6 }, top: noBdr, bottom: noBdr, right: noBdr },
-    spacing: { before: 120, after: 120 },
+    shading: { fill: C.BG_LIGHT || "F8FAFC", type: ShadingType.CLEAR },
+    border: { left: { style: BorderStyle.SINGLE, size: 8, color: C.BOX_BORDER, space: 12 }, top: noBdr, bottom: noBdr, right: noBdr },
+    spacing: { before: 160, after: 160 },
     indent: { left: 280, right: 240 },
-    children: [run(text, { size: 21, color: C.GRAY, italics: true }, C)],
+    children: [run(text, { size: 20, color: C.GRAY, italics: true }, C)],
   });
 
 const insightBox = (text, C) =>
   new Paragraph({
-    shading: { fill: C.BG_RED, type: ShadingType.CLEAR },
-    border: { left: { style: BorderStyle.THICK, size: 18, color: C.ACCENT, space: 6 }, top: noBdr, bottom: noBdr, right: noBdr },
-    spacing: { before: 120, after: 120 },
+    shading: { fill: C.BG_RED || "FEF2F2", type: ShadingType.CLEAR },
+    border: { left: { style: BorderStyle.SINGLE, size: 8, color: C.ACCENT, space: 12 }, top: noBdr, bottom: noBdr, right: noBdr },
+    spacing: { before: 160, after: 160 },
     indent: { left: 280, right: 240 },
-    children: [run(text, { size: 21, color: C.DARK, bold: true }, C)],
+    children: [run(text, { size: 20, color: C.DARK, bold: true }, C)],
   });
 
 const tipBox = (text, C) =>
   new Paragraph({
-    shading: { fill: C.BG_GREEN, type: ShadingType.CLEAR },
-    border: { left: { style: BorderStyle.THICK, size: 18, color: C.GREEN, space: 6 }, top: noBdr, bottom: noBdr, right: noBdr },
-    spacing: { before: 100, after: 100 },
+    shading: { fill: C.BG_GREEN || "F0FDF4", type: ShadingType.CLEAR },
+    border: { left: { style: BorderStyle.SINGLE, size: 8, color: C.GREEN, space: 12 }, top: noBdr, bottom: noBdr, right: noBdr },
+    spacing: { before: 120, after: 120 },
     indent: { left: 280, right: 240 },
     children: [
-      run("Tip  ", { bold: true, size: 21, color: C.GREEN }, C),
-      run(text, { size: 21, color: C.DARK }, C),
+      run("Tip  ", { bold: true, size: 20, color: C.GREEN }, C),
+      run(text, { size: 20, color: C.DARK }, C),
     ],
   });
 
 const warningBox = (text, C) =>
   new Paragraph({
-    shading: { fill: C.BG_AMBER, type: ShadingType.CLEAR },
-    border: { left: { style: BorderStyle.THICK, size: 18, color: C.AMBER, space: 6 }, top: noBdr, bottom: noBdr, right: noBdr },
-    spacing: { before: 100, after: 100 },
+    shading: { fill: C.BG_AMBER || "FFFBEB", type: ShadingType.CLEAR },
+    border: { left: { style: BorderStyle.SINGLE, size: 8, color: C.AMBER, space: 12 }, top: noBdr, bottom: noBdr, right: noBdr },
+    spacing: { before: 120, after: 120 },
     indent: { left: 280, right: 240 },
     children: [
-      run("주의  ", { bold: true, size: 21, color: C.AMBER }, C),
-      run(text, { size: 21, color: C.DARK }, C),
+      run("주의  ", { bold: true, size: 20, color: C.AMBER }, C),
+      run(text, { size: 20, color: C.DARK }, C),
     ],
   });
 
@@ -273,9 +272,9 @@ const bulletList = (items, C) =>
     (t) =>
       new Paragraph({
         numbering: { reference: "bullets", level: 0 },
-        spacing: { before: 40, after: 40, line: C.LINE_SPACING },
+        spacing: { before: 40, after: 80, line: C.LINE_SPACING || 360 },
         alignment: C.JUSTIFY ? AlignmentType.JUSTIFY : AlignmentType.LEFT,
-        children: [run(t, { size: C.SIZE_BODY || 21, color: C.TEXT }, C)],
+        children: [run(t, { size: C.SIZE_BODY || 20, color: C.TEXT }, C)],
       })
   );
 

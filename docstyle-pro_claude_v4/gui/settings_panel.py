@@ -55,21 +55,25 @@ class SettingsPanel(QGroupBox):
         self.combo_h_font = QComboBox()
         self.combo_b_font = QComboBox()
 
-        fonts = ["기본 (템플릿 종속)", "맑은 고딕", "나눔고딕", "본고딕 (Noto Sans KR)", "본명조 (Noto Serif KR)", "KoPubWorld바탕체", "KoPubWorld돋움체"]
+        fonts = [
+            "기본 (템플릿 종속)", "Pretendard", "Apple SD 산돌고딕 neo", 
+            "Inter", "맑은 고딕", "나눔고딕", "본고딕 (Noto Sans KR)", 
+            "본명조 (Noto Serif KR)", "KoPubWorld바탕체", "KoPubWorld돋움체"
+        ]
         self.combo_h_font.addItems(fonts)
         self.combo_b_font.addItems(fonts)
 
         # 2. 폰트 크기
         self.spin_base_size = QSpinBox()
         self.spin_base_size.setRange(8, 16)
-        self.spin_base_size.setValue(11)
+        self.spin_base_size.setValue(10)
         self.spin_base_size.setSuffix(" pt")
         self.spin_base_size.setSpecialValueText("기본 (템플릿 종속)")
         self.spin_base_size.setValue(8) # If 8 it shows '기본'. We handle this in logic
 
         # 3. 줄 간격
         self.combo_line_spacing = QComboBox()
-        self.combo_line_spacing.addItems(["기본 (템플릿 종속)", "1.0 (좁게)", "1.15 (보통)", "1.5 (조금 넓게)", "1.6 (넓게)"])
+        self.combo_line_spacing.addItems(["기본 (템플릿 종속 1.6)", "1.0 (좁게)", "1.15 (옛날 방식)", "1.5 (조금 넓게)", "1.6 (추천: 모던)", "1.8 (조판 느낌)"])
 
         # 4. 여백
         self.combo_margins = QComboBox()

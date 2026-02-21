@@ -197,9 +197,9 @@ def convert(
         if proc.returncode != 0:
             raise RuntimeError(f"Node.js 엔진 오류:\n{proc.stderr.strip() or proc.stdout.strip()}")
 
-        _progress(90, "파일 저장 중...")
+        _progress(90, "임시 파일 생성 완료...")
 
-        # ── Step 4: 임시 파일 정리
+        # ── Step 5: 임시 파일 정리
         if not keep_temp:
             _cleanup_temp(temp_json_path, image_base_dir if input_type == "docx" else "")
 

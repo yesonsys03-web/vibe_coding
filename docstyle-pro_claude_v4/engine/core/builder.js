@@ -194,7 +194,7 @@ const build = (data, C) => {
     // line: 240이 single spacing 이므로, 1.5면 360
     C.LINE_SPACING = Math.round(spc * 240);
   } else {
-    C.LINE_SPACING = 276; // 기본 1.15
+    C.LINE_SPACING = 384; // 기본 1.6 배수 적용 (최신 웹 트렌드)
   }
   if (settings.justify !== undefined) {
     C.JUSTIFY = settings.justify;
@@ -215,7 +215,7 @@ const build = (data, C) => {
     numbering: makeNumbering(C),
     styles: {
       default: {
-        document: { run: { font: C.FONT || "Arial", size: 22, color: C.TEXT } },
+        document: { run: { font: C.FONT || "Arial", size: C.SIZE_BODY || 20, color: C.TEXT } },
       },
     },
     sections: [
