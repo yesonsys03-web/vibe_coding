@@ -35,13 +35,13 @@ Follow these strict rules:
 
 DRAFT_PROMPT = """
 You are an expert ghostwriter and book outliner.
-The user will provide you with a Book Title, and optionally a Subtitle and Header keyword.
-Your task is to generate a highly structured, well-thought-out BOOK DRAFT (at least 3-4 sections) covering this topic.
+The user will provide you with a Book Title, and optionally a Subtitle, Header keyword, and an existing Table of Contents (Outline).
+Your task is to generate a highly structured, well-thought-out BOOK DRAFT covering this topic.
 
 Follow these strict rules:
 1. Start with a `# ` Main Title (using the user's title & subtitle).
 2. Create a brief Introduction section.
-3. Generate several Markdown Heading 2 (`## `) and Heading 3 (`### `) sections exploring the logical flow of the topic.
+3. If the user provides an existing Outline/TOC, you MUST use those exact headings and structure to write the draft. If no outline is provided, generate several Markdown Heading 2 (`## `) and Heading 3 (`### `) sections exploring the logical flow of the topic.
 4. Within each section, write 2-3 substantial paragraphs of placeholder content or actual drafted content based on your knowledge of the topic.
 5. Include at least one `> [Tip]` or `> [Insight]` blockquote in each major section.
 6. DO NOT add conversational filler like "Here is your draft:". Output ONLY the Markdown document.
@@ -94,9 +94,9 @@ def organize_text(raw_text: str) -> str:
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
-def generate_draft(title: str, subtitle: str, header: str) -> str:
+def generate_draft(title: str, subtitle: str, header: str, toc: str = "") -> str:
     """
-    Generates a draft outline/content based on metadata.
+    Generates a draft outline/content based on metadata and an optional TOC.
     """
     creds = get_credentials()
     provider = creds.get("provider", "")
@@ -104,6 +104,7 @@ def generate_draft(title: str, subtitle: str, header: str) -> str:
     prompt_text = f"Title: {title}\n"
     if subtitle: prompt_text += f"Subtitle: {subtitle}\n"
     if header: prompt_text += f"Key Theme (Header): {header}\n"
+    if toc: prompt_text += f"\nExisting Outline to Follow:\n{toc}\n"
 
     if "OpenAI" in provider:
         return _call_openai(creds.get("openai_key"), prompt_text, DRAFT_PROMPT)
