@@ -86,11 +86,14 @@ class SourceViewerDialog(QDialog):
         self.setFocus()
 
 class InsightPanel(QWidget):
+    save_note_requested = pyqtSignal(str, str)
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet("background: #F8FAFC;")
         self._thread = None
         self.context_registry = []
+        self._response_history = []
         self._build_ui()
 
     def _build_ui(self):
@@ -266,6 +269,18 @@ class InsightPanel(QWidget):
                     dlg.exec()
             except ValueError:
                 pass
+        elif url.scheme() == "save":
+            try:
+                import datetime
+                from PyQt6.QtWidgets import QInputDialog
+                idx = int(url.host())
+                if 0 <= idx < len(self._response_history):
+                    default_title = f"AI 인사이트 - {datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    title, ok = QInputDialog.getText(self, "보관함에 저장", "저장할 파일 이름을 입력하세요:", text=default_title)
+                    if ok and title.strip():
+                        self.save_note_requested.emit(title.strip(), self._response_history[idx])
+            except ValueError:
+                pass
         else:
             import webbrowser
             webbrowser.open(url.toString())
@@ -277,6 +292,9 @@ class InsightPanel(QWidget):
         if is_success:
             start_idx = len(self.context_registry)
             self.context_registry.extend(contexts)
+            
+            self._response_history.append(result)
+            history_idx = len(self._response_history) - 1
             
             # Replace [1], [2], etc. inside the markdown with custom hyperlinks
             def replacer(match):
@@ -290,6 +308,9 @@ class InsightPanel(QWidget):
                 return match.group(0)
                 
             modified_result = re.sub(r'\[(\d+)\]', replacer, result)
-            self._append_message(f"🤖 **AI**: {modified_result}")
+            
+            # Inject save footer
+            footer = f'<p align="right" style="margin-top: 10px;"><a href="save://{history_idx}" style="color: #10B981; font-weight: bold; text-decoration: none;">[💾 소스로 보관함에 저장하기]</a></p>'
+            self._append_message(f"🤖 **AI**: {modified_result}\n{footer}")
         else:
             self._append_message(f"❌ **시스템 오류**: 답변을 생성하지 못했습니다.\n\n상세: {result}")

@@ -582,6 +582,9 @@ class MainWindow(QMainWindow):
         # Connect InsightPanel send button to inject checked files from VaultExplorer
         self._left.insight_panel.btn_send.clicked.connect(self._on_insight_send_clicked)
         
+        # Connect Save Note signal from InsightPanel
+        self._left.insight_panel.save_note_requested.connect(self._on_save_note_requested)
+        
         # Connect Tab changes to trigger Smart Guide loading
         self._left.doc_tabs.currentChanged.connect(self._on_tab_changed)
         
@@ -597,6 +600,24 @@ class MainWindow(QMainWindow):
     def _on_insight_send_clicked(self):
         checked_files = self._vault_explorer.get_checked_files()
         self._left.insight_panel._on_send_clicked(checked_files)
+
+    def _on_save_note_requested(self, title: str, content: str):
+        safe_name = title.replace("/", "_").replace("\\", "_")
+        new_file = self._vault_explorer.vault_dir / f"{safe_name}.md"
+        
+        # Avoid overwriting
+        counter = 1
+        while new_file.exists():
+            new_file = self._vault_explorer.vault_dir / f"{safe_name}_{counter}.md"
+            counter += 1
+            
+        try:
+            with open(new_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            self._vault_explorer.refresh_list()
+            QMessageBox.information(self, "저장 완료", f"'{new_file.name}'가 내 소스 보관함에 성공적으로 저장되었습니다.")
+        except Exception as e:
+            QMessageBox.critical(self, "저장 실패", f"파일을 저장하는 중 오류가 발생했습니다: {e}")
 
     def _insert_md_snippet(self, prefix: str, suffix: str):
         editor = self._left.text_editor
