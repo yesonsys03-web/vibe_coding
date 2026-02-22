@@ -33,6 +33,20 @@ Follow these strict rules:
 5. DO NOT add any conversational filler like "Here is the organized text". Just output the Markdown.
 """
 
+DRAFT_PROMPT = """
+You are an expert ghostwriter and book outliner.
+The user will provide you with a Book Title, and optionally a Subtitle and Header keyword.
+Your task is to generate a highly structured, well-thought-out BOOK DRAFT (at least 3-4 sections) covering this topic.
+
+Follow these strict rules:
+1. Start with a `# ` Main Title (using the user's title & subtitle).
+2. Create a brief Introduction section.
+3. Generate several Markdown Heading 2 (`## `) and Heading 3 (`### `) sections exploring the logical flow of the topic.
+4. Within each section, write 2-3 substantial paragraphs of placeholder content or actual drafted content based on your knowledge of the topic.
+5. Include at least one `> [Tip]` or `> [Insight]` blockquote in each major section.
+6. DO NOT add conversational filler like "Here is your draft:". Output ONLY the Markdown document.
+"""
+
 def get_credentials() -> dict:
     if CREDENTIALS_FILE.exists():
         try:
@@ -53,15 +67,35 @@ def organize_text(raw_text: str) -> str:
     provider = creds.get("provider", "")
 
     if "OpenAI" in provider:
-        return _call_openai(creds.get("openai_key"), raw_text)
+        return _call_openai(creds.get("openai_key"), raw_text, ORGANIZE_PROMPT)
     elif "Anthropic" in provider:
-        return _call_anthropic(creds.get("claude_key"), raw_text)
+        return _call_anthropic(creds.get("claude_key"), raw_text, ORGANIZE_PROMPT)
     elif "Google" in provider:
-        return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), raw_text)
+        return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), raw_text, ORGANIZE_PROMPT)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
-def _call_openai(api_key: str, raw_text: str) -> str:
+def generate_draft(title: str, subtitle: str, header: str) -> str:
+    """
+    Generates a draft outline/content based on metadata.
+    """
+    creds = get_credentials()
+    provider = creds.get("provider", "")
+    
+    prompt_text = f"Title: {title}\n"
+    if subtitle: prompt_text += f"Subtitle: {subtitle}\n"
+    if header: prompt_text += f"Key Theme (Header): {header}\n"
+
+    if "OpenAI" in provider:
+        return _call_openai(creds.get("openai_key"), prompt_text, DRAFT_PROMPT)
+    elif "Anthropic" in provider:
+        return _call_anthropic(creds.get("claude_key"), prompt_text, DRAFT_PROMPT)
+    elif "Google" in provider:
+        return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), prompt_text, DRAFT_PROMPT)
+    else:
+        raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
+
+def _call_openai(api_key: str, raw_text: str, system_prompt: str = ORGANIZE_PROMPT) -> str:
     if not OpenAI:
         raise ImportError("openai 패키지가 설치되지 않았습니다.")
     if not api_key:
@@ -71,14 +105,14 @@ def _call_openai(api_key: str, raw_text: str) -> str:
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": ORGANIZE_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": raw_text}
         ],
-        temperature=0.3
+        temperature=0.7
     )
     return response.choices[0].message.content
 
-def _call_anthropic(api_key: str, raw_text: str) -> str:
+def _call_anthropic(api_key: str, raw_text: str, system_prompt: str = ORGANIZE_PROMPT) -> str:
     if not Anthropic:
         raise ImportError("anthropic 패키지가 설치되지 않았습니다.")
     if not api_key:
@@ -88,15 +122,15 @@ def _call_anthropic(api_key: str, raw_text: str) -> str:
     response = client.messages.create(
         model="claude-3-haiku-20240307",
         max_tokens=2048,
-        system=ORGANIZE_PROMPT,
+        system=system_prompt,
         messages=[
             {"role": "user", "content": raw_text}
         ],
-        temperature=0.3
+        temperature=0.7
     )
     return response.content[0].text
 
-def _call_gemini(api_key: str, token_info: dict, raw_text: str) -> str:
+def _call_gemini(api_key: str, token_info: dict, raw_text: str, system_prompt: str = ORGANIZE_PROMPT) -> str:
     if not genai:
         raise ImportError("google-genai 패키지가 설치되지 않았습니다.")
     
@@ -119,8 +153,8 @@ def _call_gemini(api_key: str, token_info: dict, raw_text: str) -> str:
         model='gemini-2.5-flash',
         contents=raw_text,
         config=genai.types.GenerateContentConfig(
-            system_instruction=ORGANIZE_PROMPT,
-            temperature=0.3,
+            system_instruction=system_prompt,
+            temperature=0.7,
         )
     )
     return response.text

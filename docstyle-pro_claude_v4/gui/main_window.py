@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
@@ -25,8 +25,25 @@ from .template_selector import TemplateSelector
 from .settings_panel   import SettingsPanel
 from .api_settings_dialog import ApiSettingsDialog
 from .ai_organizer_dialog import AiOrganizerDialog
+from bridge.ai_organizer import generate_draft
 
 APP_VERSION = "1.0.0"
+
+class AiDraftThread(QThread):
+    finished = pyqtSignal(str, bool)
+
+    def __init__(self, title: str, subtitle: str, header: str):
+        super().__init__()
+        self.title_text = title
+        self.subtitle_text = subtitle
+        self.header_text = header
+
+    def run(self):
+        try:
+            result = generate_draft(self.title_text, self.subtitle_text, self.header_text)
+            self.finished.emit(result, True)
+        except Exception as e:
+            self.finished.emit(str(e), False)
 
 
 class AppHeader(QWidget):
@@ -143,6 +160,23 @@ class LeftPanel(QWidget):
         tab2_layout = QVBoxLayout(tab2_widget)
         tab2_layout.setContentsMargins(2, 2, 2, 2)
         
+        self.btn_ai_draft = QPushButton("✨ AI 초안 자동 생성 (기본 정보 기반)")
+        self.btn_ai_draft.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ai_draft.setStyleSheet("""
+            QPushButton {
+                background: #F8FAFC;
+                color: #8B5CF6;
+                border: 1px solid #E2E8F0;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover { background: #F1F5F9; border-color: #CBD5E1; color: #7C3AED; }
+            QPushButton:disabled { background: #E5E7EB; color: #9CA3AF; }
+        """)
+        tab2_layout.addWidget(self.btn_ai_draft)
+
         self.text_editor = QTextEdit()
         self.text_editor.setPlaceholderText("여기에 노션처럼 자유롭게 글을 작성해보세요...\n\n# 제목 1\n## 제목 2\n\n- 리스트 항목\n> [Tip] 기억해둘 만한 팁")
         self.text_editor.setMinimumHeight(400)
@@ -309,10 +343,39 @@ class MainWindow(QMainWindow):
         self._left.btn_new_doc.clicked.connect(self._on_new_doc_clicked)
         self._left.btn_ai_settings.clicked.connect(self._on_ai_settings_clicked)
         self._left.btn_ai_organize.clicked.connect(self._on_ai_organize_clicked)
+        self._left.btn_ai_draft.clicked.connect(self._on_ai_draft_clicked)
         self._left.drop_zone.file_loaded.connect(self._on_file_loaded)
         self._left.drop_zone.file_error.connect(self._on_file_error)
         self._left.convert_btn.clicked.connect(self._on_convert_clicked)
         self._center.template_selected.connect(self._on_template_selected)
+
+    def _on_ai_draft_clicked(self):
+        settings = self._left.settings_panel.get_settings()
+        title = settings.get("cover_title", "").strip()
+        subtitle = settings.get("cover_subtitle", "").strip()
+        header = settings.get("header_text", "").strip()
+
+        if not title:
+            QMessageBox.warning(self, "입력 필요", "AI 초안을 생성하려면 먼저 왼쪽 설정 패널에서 '책 제목'을 입력해주세요.")
+            return
+
+        # Start AI thread
+        self._left.btn_ai_draft.setEnabled(False)
+        self._left.btn_ai_draft.setText("⏳ AI 초안 생성 중...")
+        
+        self.draft_thread = AiDraftThread(title, subtitle, header)
+        self.draft_thread.finished.connect(self._on_ai_draft_done)
+        self.draft_thread.start()
+
+    def _on_ai_draft_done(self, result: str, is_success: bool):
+        self._left.btn_ai_draft.setEnabled(True)
+        self._left.btn_ai_draft.setText("✨ AI 초안 자동 생성 (기본 정보 기반)")
+        
+        if is_success:
+            self._left.text_editor.setPlainText(result)
+            self._left.doc_tabs.setCurrentIndex(1) # Ensure Editor tab is showing
+        else:
+            QMessageBox.critical(self, "초안 작성 실패", f"AI 초안 작성 중 오류가 발생했습니다.\n\nAI 원고 정리 > 설정 탭의 API 키를 확인해주세요.\n\n상세: {result}")
 
     def _on_ai_settings_clicked(self):
         dlg = ApiSettingsDialog(self)
