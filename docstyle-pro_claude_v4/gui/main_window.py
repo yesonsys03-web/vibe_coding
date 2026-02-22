@@ -33,15 +33,16 @@ APP_VERSION = "1.0.0"
 class AiDraftThread(QThread):
     finished = pyqtSignal(str, bool)
 
-    def __init__(self, title: str, subtitle: str, header: str):
+    def __init__(self, title: str, subtitle: str, header: str, toc: str = ""):
         super().__init__()
         self.title_text = title
         self.subtitle_text = subtitle
         self.header_text = header
+        self.toc_text = toc
 
     def run(self):
         try:
-            result = generate_draft(self.title_text, self.subtitle_text, self.header_text)
+            result = generate_draft(self.title_text, self.subtitle_text, self.header_text, self.toc_text)
             self.finished.emit(result, True)
         except Exception as e:
             self.finished.emit(str(e), False)
@@ -590,6 +591,9 @@ class MainWindow(QMainWindow):
         title = settings.get("cover_title", "").strip()
         subtitle = settings.get("cover_subtitle", "").strip()
         header = settings.get("header_text", "").strip()
+        
+        # Read the current editor content (TOC) to guide the draft
+        current_text = self._left.text_editor.toPlainText().strip()
 
         if not title:
             QMessageBox.warning(self, "입력 필요", "AI 초안을 생성하려면 먼저 왼쪽 설정 패널에서 '책 제목'을 입력해주세요.")
@@ -599,7 +603,7 @@ class MainWindow(QMainWindow):
         self._left.btn_ai_draft.setEnabled(False)
         self._left.btn_ai_draft.setText("⏳ AI 초안 생성 중...")
         
-        self.draft_thread = AiDraftThread(title, subtitle, header)
+        self.draft_thread = AiDraftThread(title, subtitle, header, current_text)
         self.draft_thread.finished.connect(self._on_ai_draft_done)
         self.draft_thread.start()
 
