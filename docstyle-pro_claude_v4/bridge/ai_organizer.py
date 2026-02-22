@@ -22,15 +22,16 @@ from google.oauth2.credentials import Credentials
 CREDENTIALS_FILE = Path(__file__).parent.parent / "settings" / "ai_credentials.json"
 
 ORGANIZE_PROMPT = """
-You are an expert manuscript editor and book outliner. The user will provide a raw, disorganized draft or wall of text.
-Your task is to transform this text into a clean, well-structured Markdown document suitable for a book layout.
+You are an expert manuscript editor and book author. The user will provide a draft, an outline, or a raw wall of text.
+Your task is to transform this text into a polished, high-quality Markdown document suitable for a published book.
 
 Follow these strict rules:
-1. Divide the text into logical, readable paragraphs.
-2. Group related paragraphs and invent an appropriate, engaging Markdown Heading 2 (##) for each group.
-3. If there is a highly actionable piece of advice, an important warning, or an insightful quote, extract it and format it as a markdown blockquote starting with `> [Tip]`, `> [Warning]`, or just `>` for a quote.
-4. Correct obvious typos and grammatical errors, but maintain the author's original tone and voice.
-5. DO NOT add any conversational filler like "Here is the organized text". Just output the Markdown.
+1. If the text is just an outline or brief draft, EXPAND it into rich, detailed paragraphs. Add compelling explanations and examples.
+2. If the text is a raw wall of text, divide it into logical paragraphs and invent engaging Markdown Headings (`## `).
+3. If the text is already well-structured, POLISH the sentences to sound professional, smooth, and engaging.
+4. Extract highly actionable advice, important warnings, or insightful quotes and format them as Markdown blockquotes: `> [Tip]`, `> [Warning]`, or just `>`.
+5. Correct all typos and grammatical errors, maintaining a professional but accessible tone.
+6. DO NOT add any conversational filler like "Here is the revised text". Just output the Markdown.
 """
 
 DRAFT_PROMPT = """
