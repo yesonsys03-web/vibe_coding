@@ -72,18 +72,28 @@ def index_document(file_path: str):
         ids=ids
     )
 
-def query_vault(query_text: str, n_results: int = 5) -> list[dict]:
+def query_vault(query_text: str, n_results: int = 5, filter_files: list[str] = None) -> list[dict]:
     """
     Semantic search across the entire vault.
     Returns a list of dicts: {"content": str, "source": str, "filename": str, "distance": float}
     """
     collection = get_chroma_collection()
     
+    query_kwargs = {
+        "query_texts": [query_text],
+        "n_results": n_results
+    }
+    
+    if filter_files:
+        # filter_files are absolute paths, we need just the filenames
+        filenames = [Path(f).name for f in filter_files]
+        if len(filenames) == 1:
+            query_kwargs["where"] = {"filename": filenames[0]}
+        else:
+            query_kwargs["where"] = {"filename": {"$in": filenames}}
+    
     # Perform semantic search
-    results = collection.query(
-        query_texts=[query_text],
-        n_results=n_results
-    )
+    results = collection.query(**query_kwargs)
     
     output = []
     if results and results.get("documents") and len(results["documents"]) > 0:

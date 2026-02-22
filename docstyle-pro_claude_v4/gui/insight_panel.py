@@ -13,13 +13,14 @@ import re
 class AiInsightThread(QThread):
     finished = pyqtSignal(str, list, bool)
 
-    def __init__(self, query: str):
+    def __init__(self, query: str, filter_files: list[str] = None):
         super().__init__()
         self.query = query
+        self.filter_files = filter_files
 
     def run(self):
         try:
-            result, contexts = chat_with_vault(self.query)
+            result, contexts = chat_with_vault(self.query, filter_files=self.filter_files)
             self.finished.emit(result, contexts, True)
         except Exception as e:
             self.finished.emit(str(e), [], False)
@@ -146,8 +147,8 @@ class InsightPanel(QWidget):
             QPushButton:hover { background: #7C3AED; }
             QPushButton:disabled { background: #C4B5FD; }
         """)
-        self.btn_send.clicked.connect(self._on_send_clicked)
-
+        # Click handler is wired up in main_window.py to inject VaultExplorer state
+        
         input_layout.addWidget(self.input_box, 1)
         input_layout.addWidget(self.btn_send)
 
@@ -172,18 +173,19 @@ class InsightPanel(QWidget):
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self.chat_history.setTextCursor(cursor)
 
-    def _on_send_clicked(self):
-        query = self.input_box.toPlainText().strip()
-        if not query:
+    def _on_send_clicked(self, checked_files: list[str] = None):
+        text = self.input_box.toPlainText().strip()
+        if not text:
             return
-
-        self._append_message(f"👤 **나**: {query}")
+            
         self.input_box.clear()
+        self._append_message(f"👤 **나**: {text}")
         
         self.btn_send.setEnabled(False)
-        self.btn_send.setText("분석 중...")
+        self.btn_send.setText("생성 중...")
         
-        self._thread = AiInsightThread(query)
+        # In a real app, `checked_files` would be passed in from MainWindow where it has access to VaultExplorer
+        self._thread = AiInsightThread(text, filter_files=checked_files)
         self._thread.finished.connect(self._on_response_received)
         self._thread.start()
 
