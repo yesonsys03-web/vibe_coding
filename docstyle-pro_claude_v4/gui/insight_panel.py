@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QColor, QTextCharFormat, QFont, QTextCursor
 from pathlib import Path
-from bridge.ai_organizer import chat_with_vault
+from bridge.ai_organizer import chat_with_vault, generate_guide_questions
 import markdown
 
 
@@ -25,6 +25,19 @@ class AiInsightThread(QThread):
         except Exception as e:
             self.finished.emit(str(e), [], False)
 
+class AiGuideThread(QThread):
+    finished = pyqtSignal(list, bool)
+    
+    def __init__(self, filter_files: list[str] = None):
+        super().__init__()
+        self.filter_files = filter_files
+        
+    def run(self):
+        try:
+            questions = generate_guide_questions(filter_files=self.filter_files)
+            self.finished.emit(questions, True)
+        except Exception as e:
+            self.finished.emit([str(e)], False)
 
 class SourceViewerDialog(QDialog):
     def __init__(self, file_path: str, snippet: str, parent=None):
@@ -114,7 +127,29 @@ class InsightPanel(QWidget):
         # Welcome message
         self._append_message("🤖 **AI**: 안녕하세요! 보관함(Vault)에 쌓인 원고들을 모두 읽고 기다리고 있습니다. 궁금한 점이나 새로운 아이디어가 필요하시면 질문해 주세요.")
         
-        layout.addWidget(self.chat_history, 1)
+        # Suggested Prompts Area
+        self.suggested_layout = QHBoxLayout()
+        self.suggested_buttons = []
+        for _ in range(3):
+            btn = QPushButton("")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #F1F5F9;
+                    color: #475569;
+                    border: 1px solid #CBD5E1;
+                    border-radius: 12px;
+                    padding: 8px 12px;
+                    font-size: 13px;
+                }
+                QPushButton:hover { background: #E2E8F0; color: #1E293B; }
+            """)
+            btn.clicked.connect(lambda checked, b=btn: self._on_suggested_clicked(b.text()))
+            btn.hide() # Hidden by default until questions arrive
+            self.suggested_layout.addWidget(btn)
+            self.suggested_buttons.append(btn)
+        self.suggested_layout.addStretch()
+        layout.addLayout(self.suggested_layout)
 
         # Input Area
         input_layout = QHBoxLayout()
@@ -188,6 +223,34 @@ class InsightPanel(QWidget):
         self._thread = AiInsightThread(text, filter_files=checked_files)
         self._thread.finished.connect(self._on_response_received)
         self._thread.start()
+
+    def _on_suggested_clicked(self, text: str):
+        self.input_box.setText(text)
+        # Note: We rely on the user or main_window to trigger the send, since MainWindow 
+        # normally handles injecting checked_files into _on_send_clicked. For convenience,
+        # we can just leave it in the input box for the user to hit '질문하기' if they want.
+        
+    def load_guide_questions(self, checked_files: list[str] = None):
+        """Triggered when tab is opened or files change"""
+        for btn in self.suggested_buttons:
+            btn.setText("추천 질문 생성 중...")
+            btn.show()
+            btn.setEnabled(False)
+            
+        self._guide_thread = AiGuideThread(filter_files=checked_files)
+        self._guide_thread.finished.connect(self._on_guide_received)
+        self._guide_thread.start()
+        
+    def _on_guide_received(self, questions: list, success: bool):
+        for btn in self.suggested_buttons:
+            btn.hide()
+            
+        if success and questions:
+            for i, q in enumerate(questions):
+                if i < len(self.suggested_buttons):
+                    self.suggested_buttons[i].setText(q)
+                    self.suggested_buttons[i].setEnabled(True)
+                    self.suggested_buttons[i].show()
 
     def _on_anchor_clicked(self, url):
         if url.scheme() == "http" and url.host() == "cit":
