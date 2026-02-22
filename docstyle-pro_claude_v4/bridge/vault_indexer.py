@@ -115,3 +115,14 @@ def sync_entire_vault():
         except Exception as e:
             print(f"Failed to index {item}: {e}")
 
+def delete_document(file_path: str):
+    """
+    Removes a document's chunks from the ChromaDB index.
+    """
+    collection = get_chroma_collection()
+    try:
+        collection.delete(where={"source": file_path})
+        print(f"Removed {file_path} from Vector DB.")
+    except Exception as e:
+        print(f"Error removing document from DB: {e}")
+
