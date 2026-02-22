@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QFont, QIcon, QAction
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, 
-    QPushButton, QMessageBox, QInputDialog, QListWidgetItem
+    QPushButton, QMessageBox, QInputDialog, QListWidgetItem, QMenu
 )
 
 class VaultExplorer(QWidget):
@@ -76,6 +76,8 @@ class VaultExplorer(QWidget):
         # List Widget
         self.file_list = QListWidget()
         self.file_list.itemClicked.connect(self._on_item_clicked)
+        self.file_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.file_list.customContextMenuRequested.connect(self._show_context_menu)
         
         layout.addLayout(header_layout)
         layout.addWidget(self.file_list)
@@ -128,3 +130,64 @@ class VaultExplorer(QWidget):
             if item.data(Qt.ItemDataRole.UserRole) == path:
                 self.file_list.setCurrentItem(item)
                 break
+
+    def _show_context_menu(self, pos):
+        item = self.file_list.itemAt(pos)
+        if not item: return
+
+        menu = QMenu(self)
+        action_rename = QAction("✏️ 이름 변경", self)
+        action_delete = QAction("🗑️ 삭제", self)
+        action_reveal = QAction("📂 폴더 열기", self)
+
+        menu.addAction(action_rename)
+        menu.addAction(action_delete)
+        menu.addAction(action_reveal)
+
+        action = menu.exec(self.file_list.mapToGlobal(pos))
+        if action == action_rename:
+            self._on_rename_file(item)
+        elif action == action_delete:
+            self._on_delete_file(item)
+        elif action == action_reveal:
+            self._on_reveal_file(item)
+
+    def _on_rename_file(self, item):
+        old_path = item.data(Qt.ItemDataRole.UserRole)
+        old_name = item.text()
+        
+        new_name, ok = QInputDialog.getText(self, "이름 변경", "새 이름을 입력하세요 (확장자 제외):", text=old_name)
+        if ok and new_name.strip() and new_name.strip() != old_name:
+            new_path = Path(old_path).parent / f"{new_name.strip()}.md"
+            if new_path.exists():
+                QMessageBox.warning(self, "오류", "이미 존재하는 이름입니다.")
+                return
+            try:
+                os.rename(old_path, new_path)
+                from bridge.vault_indexer import delete_document, index_document
+                delete_document(old_path)
+                index_document(str(new_path))
+                self.refresh_list()
+                self.select_file(str(new_path))
+                self.file_selected.emit(str(new_path))
+            except Exception as e:
+                QMessageBox.critical(self, "오류", f"이름 변경 실패: {e}")
+
+    def _on_delete_file(self, item):
+        path = item.data(Qt.ItemDataRole.UserRole)
+        reply = QMessageBox.question(self, "삭제 확인", f"'{item.text()}' 원고를 정말 삭제하시겠습니까?\n휴지통으로 이동되지 않고 즉시 삭제됩니다.", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                os.remove(path)
+                from bridge.vault_indexer import delete_document
+                delete_document(path)
+                self.refresh_list()
+                self.file_selected.emit("") # Signal empty file to clear editor
+            except Exception as e:
+                QMessageBox.critical(self, "오류", f"파일 삭제 실패: {e}")
+
+    def _on_reveal_file(self, item):
+        import subprocess
+        path = item.data(Qt.ItemDataRole.UserRole)
+        subprocess.run(["open", "-R", path])
+
