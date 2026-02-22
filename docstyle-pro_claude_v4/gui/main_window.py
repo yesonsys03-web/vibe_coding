@@ -578,6 +578,30 @@ class MainWindow(QMainWindow):
         self._left.btn_md_quote.clicked.connect(lambda: self._insert_md_snippet("> ", ""))
         self._left.btn_md_tip.clicked.connect(lambda: self._insert_md_snippet("> [Tip] ", ""))
         self._left.btn_md_warn.clicked.connect(lambda: self._insert_md_snippet("> [Warning] ", ""))
+        
+        self._left.insight_panel.citation_clicked.connect(self._on_citation_clicked)
+
+    def _on_citation_clicked(self, file_path: str, snippet: str):
+        # 1. Switch Explorer and Editor to this file
+        self._vault_explorer.select_file(file_path)
+        self._on_vault_file_selected(file_path)
+        
+        # 2. Switch to the Editor tab
+        self._left.doc_tabs.setCurrentIndex(1)
+        
+        # 2. Find and highlight the exact text snippet
+        editor = self._left.text_editor
+        cursor = editor.textCursor()
+        cursor.movePosition(cursor.MoveOperation.Start)
+        editor.setTextCursor(cursor)
+        
+        # Try finding the exact match first
+        if not editor.find(snippet):
+            # Fallback to the first 40 chars if chunking removed whitespace etc.
+            short_snippet = snippet[:40] if len(snippet) > 40 else snippet
+            editor.find(short_snippet)
+            
+        editor.setFocus()
 
     def _insert_md_snippet(self, prefix: str, suffix: str):
         editor = self._left.text_editor

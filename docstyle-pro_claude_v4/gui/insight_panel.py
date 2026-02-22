@@ -7,8 +7,10 @@ from bridge.ai_organizer import chat_with_vault
 import markdown
 
 
+import re
+
 class AiInsightThread(QThread):
-    finished = pyqtSignal(str, bool)
+    finished = pyqtSignal(str, list, bool)
 
     def __init__(self, query: str):
         super().__init__()
@@ -16,17 +18,20 @@ class AiInsightThread(QThread):
 
     def run(self):
         try:
-            result = chat_with_vault(self.query)
-            self.finished.emit(result, True)
+            result, contexts = chat_with_vault(self.query)
+            self.finished.emit(result, contexts, True)
         except Exception as e:
-            self.finished.emit(str(e), False)
+            self.finished.emit(str(e), [], False)
 
 
 class InsightPanel(QWidget):
+    citation_clicked = pyqtSignal(str, str) # file_path, exact_snippet
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet("background: #F8FAFC;")
         self._thread = None
+        self.context_registry = []
         self._build_ui()
 
     def _build_ui(self):
@@ -46,7 +51,8 @@ class InsightPanel(QWidget):
 
         # Chat History
         self.chat_history = QTextBrowser()
-        self.chat_history.setOpenExternalLinks(True)
+        self.chat_history.setOpenExternalLinks(False)
+        self.chat_history.anchorClicked.connect(self._on_anchor_clicked)
         self.chat_history.setStyleSheet("""
             QTextBrowser {
                 background: #FFFFFF;
@@ -135,11 +141,41 @@ class InsightPanel(QWidget):
         self._thread.finished.connect(self._on_response_received)
         self._thread.start()
 
-    def _on_response_received(self, result: str, is_success: bool):
+    def _on_anchor_clicked(self, url):
+        if url.scheme() == "cit":
+            try:
+                global_idx = int(url.host())
+                if 0 <= global_idx < len(self.context_registry):
+                    ctx = self.context_registry[global_idx]
+                    file_path = ctx.get("source", "")
+                    snippet = ctx.get("content", "")
+                    self.citation_clicked.emit(file_path, snippet)
+            except ValueError:
+                pass
+        else:
+            import webbrowser
+            webbrowser.open(url.toString())
+
+    def _on_response_received(self, result: str, contexts: list, is_success: bool):
         self.btn_send.setEnabled(True)
         self.btn_send.setText("질문하기")
         
         if is_success:
-            self._append_message(f"🤖 **AI**: {result}")
+            start_idx = len(self.context_registry)
+            self.context_registry.extend(contexts)
+            
+            # Replace [1], [2], etc. inside the markdown with custom hyperlinks
+            def replacer(match):
+                try:
+                    local_idx = int(match.group(1)) - 1
+                    if 0 <= local_idx < len(contexts):
+                        global_idx = start_idx + local_idx
+                        return f'<a href="cit://{global_idx}" style="color: #2563EB; text-decoration: none; font-weight: bold;">[{match.group(1)}]</a>'
+                except ValueError:
+                    pass
+                return match.group(0)
+                
+            modified_result = re.sub(r'\[(\d+)\]', replacer, result)
+            self._append_message(f"🤖 **AI**: {modified_result}")
         else:
             self._append_message(f"❌ **시스템 오류**: 답변을 생성하지 못했습니다.\n\n상세: {result}")
