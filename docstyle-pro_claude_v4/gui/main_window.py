@@ -12,7 +12,7 @@ from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QFileDialog, QMessageBox, QStatusBar, QScrollArea,
-    QTabWidget, QTextEdit
+    QTabWidget, QTextEdit, QInputDialog
 )
 
 if str(Path(__file__).parent.parent) not in sys.path:
