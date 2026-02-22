@@ -8,11 +8,11 @@ import tempfile
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QFont, QIcon, QAction
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QFileDialog, QMessageBox, QStatusBar, QScrollArea,
-    QTabWidget, QTextEdit, QInputDialog
+    QTabWidget, QTextEdit, QInputDialog, QMenu
 )
 
 if str(Path(__file__).parent.parent) not in sys.path:
@@ -25,7 +25,7 @@ from .template_selector import TemplateSelector
 from .settings_panel   import SettingsPanel
 from .api_settings_dialog import ApiSettingsDialog
 from .ai_organizer_dialog import AiOrganizerDialog
-from bridge.ai_organizer import generate_draft
+from bridge.ai_organizer import generate_draft, inline_edit
 
 APP_VERSION = "1.0.0"
 
@@ -44,6 +44,78 @@ class AiDraftThread(QThread):
             self.finished.emit(result, True)
         except Exception as e:
             self.finished.emit(str(e), False)
+
+
+class AiInlineThread(QThread):
+    finished = pyqtSignal(str, bool)
+
+    def __init__(self, text: str, mode: str):
+        super().__init__()
+        self.raw_text = text
+        self.mode = mode
+
+    def run(self):
+        try:
+            result = inline_edit(self.raw_text, self.mode)
+            self.finished.emit(result, True)
+        except Exception as e:
+            self.finished.emit(str(e), False)
+
+
+class AiEditorWidget(QTextEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._thread = None
+
+    def contextMenuEvent(self, event):
+        menu = self.createStandardContextMenu()
+        
+        cursor = self.textCursor()
+        if cursor.hasSelection():
+            ai_menu = QMenu("✨ AI 글쓰기 보조", self)
+            
+            action_polish = ai_menu.addAction("✨ 문장 다듬기 (Polish)")
+            action_expand = ai_menu.addAction("📝 살 붙이기 (Expand)")
+            action_summary = ai_menu.addAction("✂️ 핵심 요약 (Summarize)")
+            
+            action_polish.triggered.connect(lambda: self._run_ai("polish"))
+            action_expand.triggered.connect(lambda: self._run_ai("expand"))
+            action_summary.triggered.connect(lambda: self._run_ai("summarize"))
+            
+            menu.insertSeparator(menu.actions()[0])
+            menu.insertMenu(menu.actions()[0], ai_menu)
+            
+        menu.exec(event.globalPos())
+
+    def _run_ai(self, mode: str):
+        cursor = self.textCursor()
+        if not cursor.hasSelection():
+            return
+            
+        selected_text = cursor.selectedText()
+        
+        # Disable interaction temporarily
+        self.setReadOnly(True)
+        cursor.insertText("\n⏳ (AI 처리 중...)\n")
+        
+        self._thread = AiInlineThread(selected_text, mode)
+        self._thread.finished.connect(lambda res, success, cur=self.textCursor(), old_txt=selected_text: self._on_ai_done(res, success, cur, old_txt))
+        self._thread.start()
+
+    def _on_ai_done(self, result: str, is_success: bool, cursor, old_text: str):
+        self.setReadOnly(False)
+        
+        # Re-select the "AI 처리 중" text we inserted 
+        cursor.movePosition(cursor.MoveOperation.Up, cursor.MoveMode.MoveAnchor, 2)
+        cursor.movePosition(cursor.MoveOperation.Down, cursor.MoveMode.KeepAnchor, 2)
+        
+        if is_success:
+            cursor.insertText(result)
+        else:
+            QMessageBox.critical(self.window(), "AI 오류", f"처리 중 오류가 발생했습니다: {result}")
+            cursor.insertText(old_text)
+            
+        self.setFocus()
 
 
 class AppHeader(QWidget):
@@ -224,7 +296,7 @@ class LeftPanel(QWidget):
         
         tab2_layout.addLayout(toolbar_layout)
 
-        self.text_editor = QTextEdit()
+        self.text_editor = AiEditorWidget()
         self.text_editor.setPlaceholderText("여기에 노션처럼 자유롭게 글을 작성해보세요...\n\n# 제목 1\n## 제목 2\n\n- 리스트 항목\n> [Tip] 기억해둘 만한 팁")
         self.text_editor.setMinimumHeight(400)
         self.text_editor.setStyleSheet("""

@@ -47,6 +47,12 @@ Follow these strict rules:
 6. DO NOT add conversational filler like "Here is your draft:". Output ONLY the Markdown document.
 """
 
+INLINE_PROMPTS = {
+    "polish": "You are a professional editor. Please refine and polish the user's text to make it sound more professional, engaging, and grammatically perfect. Maintain the original language and tone. OUTPUT ONLY THE REVISED TEXT without any filler.",
+    "expand": "You are a creative writer. Elaborate and expand on the user's text. Add more details, vivid descriptions, or logical explanations to make it a rich, complete paragraph. OUTPUT ONLY THE EXPANDED TEXT without any filler.",
+    "summarize": "You are an expert summarizer. Condense the user's text into its most essential core message. Make it brief and impactful. OUTPUT ONLY THE SUMMARIZED TEXT without any filler."
+}
+
 def get_credentials() -> dict:
     if CREDENTIALS_FILE.exists():
         try:
@@ -92,6 +98,26 @@ def generate_draft(title: str, subtitle: str, header: str) -> str:
         return _call_anthropic(creds.get("claude_key"), prompt_text, DRAFT_PROMPT)
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), prompt_text, DRAFT_PROMPT)
+    else:
+        raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
+
+def inline_edit(text: str, mode: str) -> str:
+    """
+    Executes a quick inline AI edit based on the given mode ('polish', 'expand', 'summarize').
+    """
+    if mode not in INLINE_PROMPTS:
+        raise ValueError(f"Unknown mode: {mode}")
+        
+    creds = get_credentials()
+    provider = creds.get("provider", "")
+    system_prompt = INLINE_PROMPTS[mode]
+
+    if "OpenAI" in provider:
+        return _call_openai(creds.get("openai_key"), text, system_prompt)
+    elif "Anthropic" in provider:
+        return _call_anthropic(creds.get("claude_key"), text, system_prompt)
+    elif "Google" in provider:
+        return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), text, system_prompt)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
