@@ -650,7 +650,8 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def _on_ai_organize_clicked(self):
-        dlg = AiOrganizerDialog(self)
+        current_text = self._left.text_editor.toPlainText().strip()
+        dlg = AiOrganizerDialog(self, initial_text=current_text)
         if dlg.exec():
             # User accepted the result, save it as a new .md file
             save_path, _ = QFileDialog.getSaveFileName(

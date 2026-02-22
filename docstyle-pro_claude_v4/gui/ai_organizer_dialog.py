@@ -26,8 +26,9 @@ class AiWorkerThread(QThread):
 
 
 class AiOrganizerDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, initial_text: str = ""):
         super().__init__(parent)
+        self.initial_text = initial_text
         self.setWindowTitle("✨ AI 원고 정리기 (Beta)")
         self.setMinimumSize(900, 600)
         self.setStyleSheet("""
@@ -90,6 +91,8 @@ class AiOrganizerDialog(QDialog):
         left_layout.addWidget(QLabel("📝 원본 텍스트"))
         self.ted_input = QTextEdit()
         self.ted_input.setPlaceholderText("여기에 텍스트를 붙여넣으세요...")
+        if self.initial_text:
+            self.ted_input.setPlainText(self.initial_text)
         left_layout.addWidget(self.ted_input)
 
         # Right: Output
