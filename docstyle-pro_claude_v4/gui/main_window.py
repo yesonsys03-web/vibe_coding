@@ -8,11 +8,11 @@ import tempfile
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtWidgets import (
-    QFileDialog, QHBoxLayout, QLabel,
-    QMainWindow, QMessageBox, QPushButton,
-    QStatusBar, QVBoxLayout, QWidget, QScrollArea
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QPushButton, QFileDialog, QMessageBox, QStatusBar, QScrollArea,
+    QTabWidget, QTextEdit
 )
 
 if str(Path(__file__).parent.parent) not in sys.path:
@@ -73,32 +73,93 @@ class LeftPanel(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        sec1 = QLabel("① 파일 선택")
+        sec1 = QLabel("① 원고 준비")
         sec1.setFont(QFont("Arial", 10, QFont.Weight.Bold))
         sec1.setStyleSheet("color: #374151;")
+
+        self.doc_tabs = QTabWidget()
+        self.doc_tabs.setStyleSheet("""
+            QTabBar::tab {
+                background: #F1F5F9;
+                color: #64748B;
+                padding: 8px 12px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                font-size: 13px;
+                font-weight: bold;
+                border: 1px solid #E2E8F0;
+                border-bottom: none;
+                margin-right: 4px;
+            }
+            QTabBar::tab:selected {
+                background: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #E2E8F0;
+                border-bottom: 2px solid #FFFFFF;
+            }
+            QTabWidget::pane {
+                border: 1px solid #E2E8F0;
+                background: #FFFFFF;
+                border-radius: 6px;
+                border-top-left-radius: 0;
+            }
+        """)
+
+        # --- Tab 1: 파일 로드 ---
+        tab1_widget = QWidget()
+        tab1_layout = QVBoxLayout(tab1_widget)
+        tab1_layout.setContentsMargins(12, 16, 12, 16)
+        tab1_layout.setSpacing(12)
 
         # Beginner Feature: Template Gallery Button
         self.btn_new_doc = QPushButton("📄 새 문서 만들기 (마크다운 템플릿)")
         self.btn_new_doc.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_new_doc.setStyleSheet("""
             QPushButton {
-                background: #F1F5F9;
-                color: #3B82F6;
-                border: 1px solid #CBD5E1;
+                background: #EFF6FF;
+                color: #2563EB;
+                border: 1px solid #BFDBFE;
                 border-radius: 6px;
-                padding: 8px;
+                padding: 10px;
                 font-weight: bold;
-                font-size: 11px;
+                font-size: 12px;
             }
-            QPushButton:hover { background: #E2E8F0; }
+            QPushButton:hover { background: #DBEAFE; }
         """)
 
         self.drop_zone = FileDropZone()
 
-        hint = QLabel("📌  .md 파일 권장 — 박스·Q&A·프롬프트 등\n모든 요소를 정확하게 표현합니다.\n.docx 파일도 지원하나 서식 추론에 한계가 있습니다.")
-        hint.setFont(QFont("Arial", 8))
-        hint.setStyleSheet("color: #64748B; background: #F8FAFC; border-radius: 6px; padding: 8px;")
+        hint = QLabel("📌 .md 파일 권장 — 박스·Q&A 등 서식을 완벽하게 지원합니다. (.docx 파일도 가능)")
+        hint.setFont(QFont("Arial", 11))
+        hint.setStyleSheet("color: #64748B; background: #F8FAFC; border-radius: 6px; padding: 10px;")
         hint.setWordWrap(True)
+
+        tab1_layout.addWidget(self.btn_new_doc)
+        tab1_layout.addWidget(self.drop_zone)
+        tab1_layout.addWidget(hint)
+
+        # --- Tab 2: 에디터 ---
+        tab2_widget = QWidget()
+        tab2_layout = QVBoxLayout(tab2_widget)
+        tab2_layout.setContentsMargins(2, 2, 2, 2)
+        
+        self.text_editor = QTextEdit()
+        self.text_editor.setPlaceholderText("여기에 노션처럼 자유롭게 글을 작성해보세요...\n\n# 제목 1\n## 제목 2\n\n- 리스트 항목\n> [Tip] 기억해둘 만한 팁")
+        self.text_editor.setMinimumHeight(400)
+        self.text_editor.setStyleSheet("""
+            QTextEdit {
+                border: none;
+                background: #FFFFFF;
+                color: #374151;
+                font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Inter', sans-serif;
+                font-size: 14px;
+                padding: 12px;
+            }
+        """)
+        tab2_layout.addWidget(self.text_editor)
+
+        self.doc_tabs.addTab(tab1_widget, "📁 파일 로드")
+        self.doc_tabs.addTab(tab2_widget, "📝 직접 작성")
 
         sec_ai = QLabel("② AI 원고 정리 (선택)")
         sec_ai.setFont(QFont("Arial", 10, QFont.Weight.Bold))
@@ -152,9 +213,7 @@ class LeftPanel(QWidget):
         self._apply_btn_style(False)
 
         layout.addWidget(sec1)
-        layout.addWidget(self.btn_new_doc)
-        layout.addWidget(self.drop_zone)
-        layout.addWidget(hint)
+        layout.addWidget(self.doc_tabs)
         layout.addSpacing(4)
         
         layout.addWidget(sec_ai)
@@ -167,7 +226,11 @@ class LeftPanel(QWidget):
         layout.addWidget(self.convert_btn)
         layout.addStretch()
 
+        self.text_editor.textChanged.connect(self._evaluate_ready_state)
+        self.doc_tabs.currentChanged.connect(self._evaluate_ready_state)
+
     def _apply_btn_style(self, enabled: bool):
+        self.convert_btn.setEnabled(enabled)
         if enabled:
             self.convert_btn.setStyleSheet(
                 "QPushButton { background: #DC2626; color: #FFFFFF; border: none; border-radius: 10px; font-size: 12px; font-weight: bold; }"
@@ -179,9 +242,17 @@ class LeftPanel(QWidget):
                 "QPushButton { background: #E2E8F0; color: #94A3B8; border: none; border-radius: 10px; font-size: 12px; }"
             )
 
-    def set_file_ready(self, ready: bool):
-        self.convert_btn.setEnabled(ready)
-        self._apply_btn_style(ready)
+    def set_file_ready(self, _):
+        # We ignore the boolean passed from dropzone and evaluate dynamically
+        self._evaluate_ready_state()
+
+    def _evaluate_ready_state(self):
+        idx = self.doc_tabs.currentIndex()
+        if idx == 0:
+            is_ready = bool(self.drop_zone.loaded_path)
+        else:
+            is_ready = bool(self.text_editor.toPlainText().strip())
+        self._apply_btn_style(is_ready)
 
 
 class MainWindow(QMainWindow):
@@ -313,12 +384,28 @@ class MainWindow(QMainWindow):
         self._status.showMessage(f"선택된 템플릿: {tpl['name']}  ·  {tpl['tag']}")
 
     def _on_convert_clicked(self):
-        if not self._loaded_path:
-            QMessageBox.warning(self, "파일 없음", "먼저 .docx 파일을 로드하세요.")
-            return
+        # Determine source
+        idx = self._left.doc_tabs.currentIndex()
+        if idx == 0:
+            source_path = self._left.drop_zone.loaded_path
+            if not source_path:
+                QMessageBox.warning(self, "파일 없음", "먼저 문서를 로드하세요.")
+                return
+        else:
+            text = self._left.text_editor.toPlainText().strip()
+            if not text:
+                QMessageBox.warning(self, "내용 없음", "작성된 내용이 없습니다.")
+                return
+            
+            # Save to temporary file
+            import tempfile
+            temp_path = Path.home() / ".docstyle_live_editor.md"
+            with open(temp_path, "w", encoding="utf-8") as f:
+                f.write(text)
+            source_path = str(temp_path)
 
         # 1. 임시 경로에 먼저 저장
-        session_id = str(Path(self._loaded_path).stem)
+        session_id = str(Path(source_path).stem)
         temp_dir = Path(tempfile.gettempdir()) / "docstyle_pro"
         temp_dir.mkdir(parents=True, exist_ok=True)
         self._temp_output_path = str(temp_dir / f"{session_id}_t{self._template_id}.docx")
@@ -327,7 +414,7 @@ class MainWindow(QMainWindow):
         settings = self._left.settings_panel.get_settings()
         
         dlg = ProgressDialog(
-            input_path=self._loaded_path,
+            input_path=source_path,
             output_path=self._temp_output_path,
             template_id=self._template_id,
             template_name=tpl_name,
