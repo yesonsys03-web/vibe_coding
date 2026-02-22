@@ -25,7 +25,7 @@ from .template_selector import TemplateSelector
 from .settings_panel   import SettingsPanel
 from .api_settings_dialog import ApiSettingsDialog
 from .ai_organizer_dialog import AiOrganizerDialog
-from bridge.ai_organizer import generate_draft, inline_edit
+from bridge.ai_organizer import generate_draft, inline_edit, generate_toc
 import markdown
 
 APP_VERSION = "1.0.0"
@@ -42,6 +42,23 @@ class AiDraftThread(QThread):
     def run(self):
         try:
             result = generate_draft(self.title_text, self.subtitle_text, self.header_text)
+            self.finished.emit(result, True)
+        except Exception as e:
+            self.finished.emit(str(e), False)
+
+
+class AiTocThread(QThread):
+    finished = pyqtSignal(str, bool)
+
+    def __init__(self, title: str, subtitle: str, header: str):
+        super().__init__()
+        self.title_text = title
+        self.subtitle_text = subtitle
+        self.header_text = header
+
+    def run(self):
+        try:
+            result = generate_toc(self.title_text, self.subtitle_text, self.header_text)
             self.finished.emit(result, True)
         except Exception as e:
             self.finished.emit(str(e), False)
@@ -233,9 +250,10 @@ class LeftPanel(QWidget):
         tab2_layout = QVBoxLayout(tab2_widget)
         tab2_layout.setContentsMargins(2, 2, 2, 2)
         
-        self.btn_ai_draft = QPushButton("✨ AI 초안 자동 생성 (기본 정보 기반)")
-        self.btn_ai_draft.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_ai_draft.setStyleSheet("""
+        ai_draft_layout = QHBoxLayout()
+        ai_draft_layout.setSpacing(4)
+        
+        btn_ai_style = """
             QPushButton {
                 background: #F8FAFC;
                 color: #8B5CF6;
@@ -247,8 +265,20 @@ class LeftPanel(QWidget):
             }
             QPushButton:hover { background: #F1F5F9; border-color: #CBD5E1; color: #7C3AED; }
             QPushButton:disabled { background: #E5E7EB; color: #9CA3AF; }
-        """)
-        tab2_layout.addWidget(self.btn_ai_draft)
+        """
+        
+        self.btn_ai_toc = QPushButton("📑 AI 목차 기획")
+        self.btn_ai_toc.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ai_toc.setStyleSheet(btn_ai_style)
+        
+        self.btn_ai_draft = QPushButton("✨ AI 본문 초안 자동 생성")
+        self.btn_ai_draft.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ai_draft.setStyleSheet(btn_ai_style)
+        
+        ai_draft_layout.addWidget(self.btn_ai_toc)
+        ai_draft_layout.addWidget(self.btn_ai_draft)
+        
+        tab2_layout.addLayout(ai_draft_layout)
 
         toolbar_layout = QHBoxLayout()
         toolbar_layout.setSpacing(4)
@@ -497,6 +527,7 @@ class MainWindow(QMainWindow):
         self._left.btn_ai_settings.clicked.connect(self._on_ai_settings_clicked)
         self._left.btn_ai_organize.clicked.connect(self._on_ai_organize_clicked)
         self._left.btn_ai_draft.clicked.connect(self._on_ai_draft_clicked)
+        self._left.btn_ai_toc.clicked.connect(self._on_ai_toc_clicked)
         self._left.drop_zone.file_loaded.connect(self._on_file_loaded)
         self._left.drop_zone.file_error.connect(self._on_file_error)
         self._left.convert_btn.clicked.connect(self._on_convert_clicked)
@@ -581,6 +612,34 @@ class MainWindow(QMainWindow):
             self._left.doc_tabs.setCurrentIndex(1) # Ensure Editor tab is showing
         else:
             QMessageBox.critical(self, "초안 작성 실패", f"AI 초안 작성 중 오류가 발생했습니다.\n\nAI 원고 정리 > 설정 탭의 API 키를 확인해주세요.\n\n상세: {result}")
+
+    def _on_ai_toc_clicked(self):
+        settings = self._left.settings_panel.get_settings()
+        title = settings.get("cover_title", "").strip()
+        subtitle = settings.get("cover_subtitle", "").strip()
+        header = settings.get("header_text", "").strip()
+
+        if not title:
+            QMessageBox.warning(self, "입력 필요", "AI 목차를 기획하려면 먼저 왼쪽 설정 패널에서 '책 제목'을 입력해주세요.")
+            return
+
+        # Start AI thread
+        self._left.btn_ai_toc.setEnabled(False)
+        self._left.btn_ai_toc.setText("⏳ AI 목차 기획 중...")
+        
+        self.toc_thread = AiTocThread(title, subtitle, header)
+        self.toc_thread.finished.connect(self._on_ai_toc_done)
+        self.toc_thread.start()
+
+    def _on_ai_toc_done(self, result: str, is_success: bool):
+        self._left.btn_ai_toc.setEnabled(True)
+        self._left.btn_ai_toc.setText("📑 AI 목차 기획")
+        
+        if is_success:
+            self._left.text_editor.setPlainText(result)
+            self._left.doc_tabs.setCurrentIndex(1) # Ensure Editor tab is showing
+        else:
+            QMessageBox.critical(self, "목차 기획 실패", f"AI 목차 기획 중 오류가 발생했습니다.\n\nAI 원고 정리 > 설정 탭의 API 키를 확인해주세요.\n\n상세: {result}")
 
     def _on_ai_settings_clicked(self):
         dlg = ApiSettingsDialog(self)
