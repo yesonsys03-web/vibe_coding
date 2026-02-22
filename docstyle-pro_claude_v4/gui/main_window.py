@@ -12,7 +12,7 @@ from PyQt6.QtGui import QFont, QIcon, QAction
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QFileDialog, QMessageBox, QStatusBar, QScrollArea,
-    QTabWidget, QTextEdit, QInputDialog, QMenu
+    QTabWidget, QTextEdit, QInputDialog, QMenu, QSplitter, QTextBrowser
 )
 
 if str(Path(__file__).parent.parent) not in sys.path:
@@ -26,6 +26,7 @@ from .settings_panel   import SettingsPanel
 from .api_settings_dialog import ApiSettingsDialog
 from .ai_organizer_dialog import AiOrganizerDialog
 from bridge.ai_organizer import generate_draft, inline_edit
+import markdown
 
 APP_VERSION = "1.0.0"
 
@@ -296,6 +297,16 @@ class LeftPanel(QWidget):
         
         tab2_layout.addLayout(toolbar_layout)
 
+        # QSplitter to hold Editor (Left) and Live Preview (Right)
+        self.editor_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.editor_splitter.setHandleWidth(1)
+        self.editor_splitter.setStyleSheet("QSplitter::handle { background: #E2E8F0; }")
+
+        # Left side: Editor
+        editor_wrapper = QWidget()
+        editor_vbox = QVBoxLayout(editor_wrapper)
+        editor_vbox.setContentsMargins(0, 0, 0, 0)
+        
         self.text_editor = AiEditorWidget()
         self.text_editor.setPlaceholderText("여기에 노션처럼 자유롭게 글을 작성해보세요...\n\n# 제목 1\n## 제목 2\n\n- 리스트 항목\n> [Tip] 기억해둘 만한 팁")
         self.text_editor.setMinimumHeight(400)
@@ -309,7 +320,24 @@ class LeftPanel(QWidget):
                 padding: 12px;
             }
         """)
-        tab2_layout.addWidget(self.text_editor)
+        editor_vbox.addWidget(self.text_editor)
+        
+        # Right side: Live Preview
+        self.text_preview = QTextBrowser()
+        self.text_preview.setOpenExternalLinks(True)
+        self.text_preview.setStyleSheet("""
+            QTextBrowser {
+                border: none;
+                background: #F8FAFC;
+                padding: 12px;
+            }
+        """)
+
+        self.editor_splitter.addWidget(editor_wrapper)
+        self.editor_splitter.addWidget(self.text_preview)
+        self.editor_splitter.setSizes([500, 500]) # Even split initially
+        
+        tab2_layout.addWidget(self.editor_splitter)
 
         self.doc_tabs.addTab(tab1_widget, "📁 파일 로드")
         self.doc_tabs.addTab(tab2_widget, "📝 직접 작성")
@@ -468,6 +496,8 @@ class MainWindow(QMainWindow):
         self._left.convert_btn.clicked.connect(self._on_convert_clicked)
         self._center.template_selected.connect(self._on_template_selected)
         
+        self._left.text_editor.textChanged.connect(self._update_live_preview)
+        
         # Toolbar connect
         self._left.btn_md_h1.clicked.connect(lambda: self._insert_md_snippet("# ", ""))
         self._left.btn_md_h2.clicked.connect(lambda: self._insert_md_snippet("## ", ""))
@@ -491,6 +521,32 @@ class MainWindow(QMainWindow):
         
         editor.setTextCursor(cursor)
         editor.setFocus()
+
+    def _update_live_preview(self):
+        md_text = self._left.text_editor.toPlainText()
+        
+        html = markdown.markdown(md_text, extensions=['fenced_code', 'tables'])
+        
+        css = """
+        <style>
+            body { font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; color: #333; line-height: 1.6; }
+            h1 { font-size: 1.5em; border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #0F172A; }
+            h2 { font-size: 1.3em; margin-top: 1em; color: #1E293B; }
+            h3 { font-size: 1.1em; }
+            blockquote { 
+                border-left: 4px solid #CBD5E1; 
+                padding-left: 10px; 
+                color: #475569; 
+                margin: 1em 0; 
+                background: #F1F5F9;
+                padding: 10px;
+                border-radius: 4px;
+            }
+            code { background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
+            pre { background-color: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        </style>
+        """
+        self._left.text_preview.setHtml(css + html)
 
     def _on_ai_draft_clicked(self):
         settings = self._left.settings_panel.get_settings()
