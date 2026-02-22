@@ -398,7 +398,6 @@ class MainWindow(QMainWindow):
                 return
             
             # Save to temporary file
-            import tempfile
             temp_path = Path.home() / ".docstyle_live_editor.md"
             with open(temp_path, "w", encoding="utf-8") as f:
                 f.write(text)
