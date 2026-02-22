@@ -684,21 +684,10 @@ class MainWindow(QMainWindow):
         current_text = self._left.text_editor.toPlainText().strip()
         dlg = AiOrganizerDialog(self, initial_text=current_text)
         if dlg.exec():
-            # User accepted the result, save it as a new .md file
-            save_path, _ = QFileDialog.getSaveFileName(
-                self, "정리된 원고 저장", str(Path.home() / "AI_정리_원고.md"), "Markdown files (*.md)"
-            )
-            if save_path:
-                try:
-                    with open(save_path, 'w', encoding='utf-8') as f:
-                        f.write(dlg.final_md)
-                    
-                    import subprocess
-                    subprocess.run(["open", save_path])
-                    self._left.drop_zone._process_path(save_path)
-                    self._status.showMessage(f"AI 정리 문서가 열렸습니다. 내용 추가 확인 후 변환을 누르세요. ({save_path})")
-                except Exception as e:
-                    QMessageBox.critical(self, "오류", f"파일 저장 중 오류가 발생했습니다.\n\n{e}")
+            # User accepted the result, overwrite the editor's text
+            # This will automatically trigger _auto_save_vault_file due to textChanged
+            self._left.text_editor.setPlainText(dlg.final_md)
+            self._status.showMessage("✨ AI 원고 정리가 완료되어 에디터와 보관함에 자동 저장되었습니다.")
 
     def _on_new_doc_clicked(self):
         templates = {
