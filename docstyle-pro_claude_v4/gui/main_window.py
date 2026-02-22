@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont, QIcon, QAction
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
@@ -27,6 +27,7 @@ from .api_settings_dialog import ApiSettingsDialog
 from .ai_organizer_dialog import AiOrganizerDialog
 from .vault_explorer import VaultExplorer
 from bridge.ai_organizer import generate_draft, inline_edit, generate_toc
+from bridge.vault_indexer import index_document
 import markdown
 
 APP_VERSION = "1.0.0"
@@ -80,6 +81,19 @@ class AiInlineThread(QThread):
             self.finished.emit(result, True)
         except Exception as e:
             self.finished.emit(str(e), False)
+
+
+class VaultIndexerThread(QThread):
+    def __init__(self, file_path: str):
+        super().__init__()
+        self.file_path = file_path
+
+    def run(self):
+        try:
+            index_document(self.file_path)
+            print(f"Vault index updated for: {self.file_path}")
+        except Exception as e:
+            print(f"Vault indexer error: {e}")
 
 
 class AiEditorWidget(QTextEdit):
@@ -616,6 +630,20 @@ class MainWindow(QMainWindow):
                     f.write(content)
             except Exception as e:
                 print(f"Failed to auto-save vault file: {e}")
+            
+            # Debounce the heavy vector indexing operation (wait 5s after last typing)
+            if hasattr(self, '_index_timer'):
+                self._index_timer.stop()
+            else:
+                self._index_timer = QTimer(self)
+                self._index_timer.setSingleShot(True)
+                self._index_timer.timeout.connect(self._trigger_vault_indexer)
+            self._index_timer.start(5000)
+
+    def _trigger_vault_indexer(self):
+        if self._active_vault_file:
+            self._indexer_thread = VaultIndexerThread(self._active_vault_file)
+            self._indexer_thread.start()
 
     def _on_ai_draft_clicked(self):
         settings = self._left.settings_panel.get_settings()
