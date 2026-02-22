@@ -14,6 +14,7 @@
 const {
   Document, Header, Footer, Paragraph, TextRun,
   AlignmentType, BorderStyle, ShadingType, LevelFormat,
+  TableOfContents,
 } = require("docx");
 
 const E = require("./elements");
@@ -200,8 +201,36 @@ const build = (data, C) => {
     C.JUSTIFY = settings.justify;
   }
 
-  // 2. 전체 요소 → docx 객체 배열 (flat)
+  // 2. Cover Page
   const children = [];
+
+  if (meta.title || meta.subtitle || meta.author) {
+    children.push(...E.coverPage(meta.title, meta.subtitle, meta.author, C));
+  }
+
+  // 3. Table of Contents
+  if (meta.auto_toc) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 240, after: 240 },
+        children: [E.run("차례", { size: 36, bold: true, color: C.DARK }, C)],
+      }),
+      new TableOfContents(" ", {
+        hyperlink: true,
+        headingStyleRange: "1-3",
+        stylesWithLevels: [
+          new String("Heading 1"), 1,
+          new String("Heading 2"), 2,
+          new String("Heading 3"), 3,
+        ],
+      }),
+      E.empty(200),
+      new Paragraph({ children: [E.run("", { break: 1 }, C)] })
+    );
+  }
+
+  // 4. 전체 요소 → docx 객체 배열 (flat)
   children.push(E.empty(200));
 
   for (const el of (data.elements || [])) {

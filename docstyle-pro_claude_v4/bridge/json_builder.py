@@ -167,13 +167,21 @@ def build_json(
         if d is not None:
             serialized_elements.append(d)
 
+    # Allow GUI settings to override parsed metadata for the cover
+    title = custom_settings.get("cover_title") or parsed.meta.title
+    author = custom_settings.get("cover_author") or parsed.meta.author
+    subtitle = custom_settings.get("cover_subtitle", "")
+    auto_toc = custom_settings.get("auto_toc", True)
+
     payload = {
         "template":      template_id,
         "custom_settings": custom_settings or {},
         "meta": {
-            "title":   parsed.meta.title,
-            "author":  parsed.meta.author,
+            "title":   title,
+            "subtitle": subtitle,
+            "author":  author,
             "chapter": parsed.meta.chapter,
+            "auto_toc": auto_toc,
         },
         "image_base_dir": parsed.image_base_dir,
         "elements":       serialized_elements,

@@ -12,7 +12,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication, QFileDialog, QHBoxLayout, QLabel,
     QMainWindow, QMessageBox, QPushButton,
-    QStatusBar, QVBoxLayout, QWidget,
+    QStatusBar, QVBoxLayout, QWidget, QInputDialog
 )
 
 if str(Path(__file__).parent.parent) not in sys.path:
@@ -76,6 +76,22 @@ class LeftPanel(QWidget):
         sec1.setFont(QFont("Arial", 10, QFont.Weight.Bold))
         sec1.setStyleSheet("color: #374151;")
 
+        # Beginner Feature: Template Gallery Button
+        self.btn_new_doc = QPushButton("📄 새 문서 만들기 (마크다운 템플릿)")
+        self.btn_new_doc.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_new_doc.setStyleSheet("""
+            QPushButton {
+                background: #F1F5F9;
+                color: #3B82F6;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 8px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover { background: #E2E8F0; }
+        """)
+
         self.drop_zone = FileDropZone()
 
         hint = QLabel("📌  .md 파일 권장 — 박스·Q&A·프롬프트 등\n모든 요소를 정확하게 표현합니다.\n.docx 파일도 지원하나 서식 추론에 한계가 있습니다.")
@@ -97,6 +113,7 @@ class LeftPanel(QWidget):
         self._apply_btn_style(False)
 
         layout.addWidget(sec1)
+        layout.addWidget(self.btn_new_doc)
         layout.addWidget(self.drop_zone)
         layout.addWidget(hint)
         layout.addSpacing(4)
@@ -167,10 +184,41 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self._status)
 
     def _connect_signals(self):
+        self._left.btn_new_doc.clicked.connect(self._on_new_doc_clicked)
         self._left.drop_zone.file_loaded.connect(self._on_file_loaded)
         self._left.drop_zone.file_error.connect(self._on_file_error)
         self._left.convert_btn.clicked.connect(self._on_convert_clicked)
         self._center.template_selected.connect(self._on_template_selected)
+
+    def _on_new_doc_clicked(self):
+        templates = {
+            "에세이 (감성적인 글쓰기)": "1_essay.md",
+            "실용서 / 매뉴얼 (정보 전달)": "2_manual.md",
+            "소설 (문학적 표현)": "3_novel.md"
+        }
+        item, ok = QInputDialog.getItem(
+            self, "마크다운 템플릿 선택", 
+            "원하시는 문서 형식을 선택해주세요:", 
+            list(templates.keys()), 0, False
+        )
+        if ok and item:
+            save_path, _ = QFileDialog.getSaveFileName(
+                self, "새 문서 저장 위치", str(Path.home() / "새_문서.md"), "Markdown files (*.md)"
+            )
+            if save_path:
+                import shutil, subprocess
+                src_path = Path(__file__).parent.parent / "sample_docs" / templates[item]
+                
+                try:
+                    shutil.copy2(src_path, save_path)
+                    # Open file so user can edit it immediately
+                    subprocess.run(["open", save_path])
+                    
+                    # Also load it to the dropzone visually and logically
+                    self._left.drop_zone._process_path(save_path)
+                    self._status.showMessage(f"새 문서가 열렸습니다. 내용 작성 후 저장하시고 변환을 누르세요. ({save_path})")
+                except Exception as e:
+                    QMessageBox.critical(self, "오류", f"템플릿을 복사하는 중 오류가 발생했습니다.\n\n{e}")
 
     def _on_file_loaded(self, path: str):
         self._loaded_path = path

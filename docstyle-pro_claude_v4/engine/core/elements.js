@@ -143,6 +143,47 @@ const h3 = (text, C) =>
     children: [run(text, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H3 || 22, color: C.DARK }, C)],
   });
 
+const coverPage = (title, subtitle, author, C) => {
+  const elements = [empty(1200)]; // Push down to middle of page
+
+  if (title) {
+    elements.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 240 },
+        children: [run(title, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: 56, color: C.DARK }, C)],
+      })
+    );
+  }
+
+  if (subtitle) {
+    elements.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 800 },
+        children: [run(subtitle, { font: C.FONT || "Arial", size: 28, color: C.GRAY, italics: true }, C)],
+      })
+    );
+  }
+
+  if (author) {
+    elements.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 800, after: 0 },
+        children: [run(author, { font: C.FONT || "Arial", size: 24, color: C.GRAY3 }, C)],
+      })
+    );
+  }
+
+  // Page break after cover
+  if (elements.length > 1) { // If it's not just the empty spacer
+    elements[elements.length - 1].addChildElement(run("", { break: 1 }, C));
+  }
+
+  return elements;
+};
+
 // ─────────────────────────────────────────────
 // 박스 요소
 // ─────────────────────────────────────────────
@@ -398,7 +439,7 @@ module.exports = {
   noBdr, solidBdr, thickBdr,
   run, para, empty, hrPara,
   bodyText, caption,
-  chapterTitle, h1, h2, h3,
+  chapterTitle, h1, h2, h3, coverPage,
   quoteBox, insightBox, tipBox, warningBox, qaBlock, promptBox, conclusionBox,
   bulletList,
   imgPlaceholder, imgReal,
