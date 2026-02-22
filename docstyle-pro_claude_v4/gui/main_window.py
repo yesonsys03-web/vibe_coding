@@ -177,6 +177,53 @@ class LeftPanel(QWidget):
         """)
         tab2_layout.addWidget(self.btn_ai_draft)
 
+        toolbar_layout = QHBoxLayout()
+        toolbar_layout.setSpacing(4)
+        
+        btn_style = """
+            QPushButton {
+                background: #FFFFFF;
+                color: #475569;
+                border: 1px solid #E2E8F0;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+            QPushButton:hover { background: #F8FAFC; border-color: #CBD5E1; color: #0F172A; }
+        """
+        
+        self.btn_md_h1 = QPushButton("H1")
+        self.btn_md_h1.setStyleSheet(btn_style)
+        self.btn_md_h1.setToolTip("제목 1")
+        
+        self.btn_md_h2 = QPushButton("H2")
+        self.btn_md_h2.setStyleSheet(btn_style)
+        self.btn_md_h2.setToolTip("제목 2")
+        
+        self.btn_md_bold = QPushButton("B")
+        self.btn_md_bold.setStyleSheet(btn_style + "QPushButton { font-weight: bold; }")
+        self.btn_md_bold.setToolTip("굵게")
+        
+        self.btn_md_quote = QPushButton("❝")
+        self.btn_md_quote.setStyleSheet(btn_style)
+        self.btn_md_quote.setToolTip("인용구")
+        
+        self.btn_md_tip = QPushButton("💡 팁")
+        self.btn_md_tip.setStyleSheet(btn_style)
+        
+        self.btn_md_warn = QPushButton("⚠️ 경고")
+        self.btn_md_warn.setStyleSheet(btn_style)
+        
+        toolbar_layout.addWidget(self.btn_md_h1)
+        toolbar_layout.addWidget(self.btn_md_h2)
+        toolbar_layout.addWidget(self.btn_md_bold)
+        toolbar_layout.addWidget(self.btn_md_quote)
+        toolbar_layout.addWidget(self.btn_md_tip)
+        toolbar_layout.addWidget(self.btn_md_warn)
+        toolbar_layout.addStretch()
+        
+        tab2_layout.addLayout(toolbar_layout)
+
         self.text_editor = QTextEdit()
         self.text_editor.setPlaceholderText("여기에 노션처럼 자유롭게 글을 작성해보세요...\n\n# 제목 1\n## 제목 2\n\n- 리스트 항목\n> [Tip] 기억해둘 만한 팁")
         self.text_editor.setMinimumHeight(400)
@@ -348,6 +395,30 @@ class MainWindow(QMainWindow):
         self._left.drop_zone.file_error.connect(self._on_file_error)
         self._left.convert_btn.clicked.connect(self._on_convert_clicked)
         self._center.template_selected.connect(self._on_template_selected)
+        
+        # Toolbar connect
+        self._left.btn_md_h1.clicked.connect(lambda: self._insert_md_snippet("# ", ""))
+        self._left.btn_md_h2.clicked.connect(lambda: self._insert_md_snippet("## ", ""))
+        self._left.btn_md_bold.clicked.connect(lambda: self._insert_md_snippet("**", "**"))
+        self._left.btn_md_quote.clicked.connect(lambda: self._insert_md_snippet("> ", ""))
+        self._left.btn_md_tip.clicked.connect(lambda: self._insert_md_snippet("> [Tip] ", ""))
+        self._left.btn_md_warn.clicked.connect(lambda: self._insert_md_snippet("> [Warning] ", ""))
+
+    def _insert_md_snippet(self, prefix: str, suffix: str):
+        editor = self._left.text_editor
+        cursor = editor.textCursor()
+        
+        if cursor.hasSelection():
+            text = cursor.selectedText()
+            cursor.insertText(f"{prefix}{text}{suffix}")
+        else:
+            cursor.insertText(f"{prefix}텍스트{suffix}")
+            # Move cursor back to select "텍스트" so user can type over it immediately
+            cursor.movePosition(cursor.MoveOperation.Left, cursor.MoveMode.KeepAnchor, len("텍스트") + len(suffix))
+            cursor.movePosition(cursor.MoveOperation.Right, cursor.MoveMode.KeepAnchor, len("텍스트"))
+        
+        editor.setTextCursor(cursor)
+        editor.setFocus()
 
     def _on_ai_draft_clicked(self):
         settings = self._left.settings_panel.get_settings()
