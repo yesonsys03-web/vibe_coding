@@ -85,14 +85,19 @@ class AiInlineThread(QThread):
 
 
 class VaultIndexerThread(QThread):
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str = None):
         super().__init__()
         self.file_path = file_path
 
     def run(self):
         try:
-            index_document(self.file_path)
-            print(f"Vault index updated for: {self.file_path}")
+            if self.file_path:
+                index_document(self.file_path)
+                print(f"Vault index updated for: {self.file_path}")
+            else:
+                from bridge.vault_indexer import sync_entire_vault
+                sync_entire_vault()
+                print("Vault full sync complete.")
         except Exception as e:
             print(f"Vault indexer error: {e}")
 
@@ -499,6 +504,10 @@ class MainWindow(QMainWindow):
         self.resize(1280, 780)
         self._build_ui()
         self._connect_signals()
+        
+        # Trigger full vault sync on startup
+        self._full_sync_thread = VaultIndexerThread(None)
+        self._full_sync_thread.start()
 
     def _build_ui(self):
         central = QWidget()

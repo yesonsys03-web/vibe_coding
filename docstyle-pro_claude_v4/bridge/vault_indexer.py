@@ -100,3 +100,18 @@ def query_vault(query_text: str, n_results: int = 5) -> list[dict]:
             })
             
     return output
+
+def sync_entire_vault():
+    """
+    Scans the vault directory and indexes all .md files.
+    """
+    vault_dir = Path.home() / "Documents" / "DocStyle_Vault"
+    if not vault_dir.exists():
+        return
+        
+    for item in vault_dir.glob("*.md"):
+        try:
+            index_document(str(item))
+        except Exception as e:
+            print(f"Failed to index {item}: {e}")
+
