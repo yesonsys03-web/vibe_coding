@@ -458,15 +458,17 @@ class MainWindow(QMainWindow):
 
         root.addWidget(AppHeader())
 
-        body = QHBoxLayout()
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(0)
+        # Main horizontal splitter for the three core panels
+        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.main_splitter.setHandleWidth(1)
+        self.main_splitter.setStyleSheet("QSplitter::handle { background: #E5E7EB; }")
 
         self._left   = LeftPanel()
         self._left_scroll = QScrollArea()
         self._left_scroll.setWidget(self._left)
         self._left_scroll.setWidgetResizable(True)
-        self._left_scroll.setFixedWidth(290)
+        # Removed fixed width so it can be resized
+        self._left_scroll.setMinimumWidth(320)
         self._left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._left_scroll.setStyleSheet("QScrollArea { border: none; border-right: 1px solid #E5E7EB; background: #FFFFFF; }")
 
@@ -476,10 +478,14 @@ class MainWindow(QMainWindow):
         self._right.setMaximumWidth(320)
         self._right.setStyleSheet("background: #F8FAFC; border-left: 1px solid #E5E7EB;")
 
-        body.addWidget(self._left_scroll)
-        body.addWidget(self._center, 1)
-        body.addWidget(self._right)
-        root.addLayout(body, 1)
+        self.main_splitter.addWidget(self._left_scroll)
+        self.main_splitter.addWidget(self._center)
+        self.main_splitter.addWidget(self._right)
+        
+        # Set initial ratio: Left (wider for editor), Center (templates), Right (preview)
+        self.main_splitter.setSizes([500, 400, 260])
+        
+        root.addWidget(self.main_splitter, 1)
 
         self._status = QStatusBar()
         self._status.setStyleSheet("QStatusBar { background: #1E293B; color: #94A3B8; font-size: 9px; }")
