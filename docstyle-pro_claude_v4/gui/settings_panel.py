@@ -39,9 +39,8 @@ class SettingsPanel(QGroupBox):
                 border: 1px solid #CBD5E1;
                 border-radius: 4px;
                 background: #FFFFFF;
-                padding: 2px 6px;
+                padding: 4px 6px;
                 font-size: 12px;
-                min-height: 22px;
             }
         """)
 
@@ -56,10 +55,10 @@ class SettingsPanel(QGroupBox):
             QTabBar::tab {
                 background: #E2E8F0;
                 color: #64748B;
-                padding: 6px 12px;
+                padding: 8px 12px;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: bold;
                 border: 1px solid #CBD5E1;
                 border-bottom: none;
@@ -83,32 +82,47 @@ class SettingsPanel(QGroupBox):
         # --- Tab 1: 기본 정보 ---
         tab1 = QWidget()
         layout1 = QFormLayout(tab1)
-        layout1.setContentsMargins(12, 16, 12, 12)
-        layout1.setSpacing(10)
+        layout1.setContentsMargins(12, 16, 12, 16)
+        layout1.setSpacing(14)
 
         self.edit_cover_title = QLineEdit()
+        self.edit_cover_title.setFixedHeight(28)
         self.edit_cover_title.setPlaceholderText("책 제목을 입력하세요")
         self.edit_cover_subtitle = QLineEdit()
+        self.edit_cover_subtitle.setFixedHeight(28)
         self.edit_cover_subtitle.setPlaceholderText("부제목 (선택사항)")
         self.edit_cover_author = QLineEdit()
+        self.edit_cover_author.setFixedHeight(28)
         self.edit_cover_author.setPlaceholderText("저자명 (선택사항)")
         
         self.chk_auto_toc = QCheckBox("자동 목차 생성 (표지 다음 장)")
         self.chk_auto_toc.setChecked(True)
 
+        self.edit_header_text = QLineEdit()
+        self.edit_header_text.setFixedHeight(28)
+        self.edit_header_text.setPlaceholderText("머리글에 표시할 텍스트 (선택사항)")
+        
+        self.chk_page_numbers = QCheckBox("바닥글에 쪽 번호 추가")
+        self.chk_page_numbers.setChecked(True)
+
         layout1.addRow("책 제목:", self.edit_cover_title)
         layout1.addRow("부제목:", self.edit_cover_subtitle)
         layout1.addRow("저자명:", self.edit_cover_author)
         layout1.addRow("", self.chk_auto_toc)
+        layout1.addRow(QLabel("<b>[머리글 & 바닥글]</b>"))
+        layout1.addRow("머리글:", self.edit_header_text)
+        layout1.addRow("", self.chk_page_numbers)
 
         # --- Tab 2: 디자인 상세 ---
         tab2 = QWidget()
         layout2 = QFormLayout(tab2)
-        layout2.setContentsMargins(12, 16, 12, 12)
-        layout2.setSpacing(10)
+        layout2.setContentsMargins(12, 16, 12, 16)
+        layout2.setSpacing(14)
 
         self.combo_h_font = QComboBox()
+        self.combo_h_font.setFixedHeight(28)
         self.combo_b_font = QComboBox()
+        self.combo_b_font.setFixedHeight(28)
         fonts = [
             "기본 (템플릿 종속)", "Pretendard", "Apple SD 산돌고딕 neo", 
             "Inter", "맑은 고딕", "나눔고딕", "본고딕 (Noto Sans KR)", 
@@ -118,6 +132,7 @@ class SettingsPanel(QGroupBox):
         self.combo_b_font.addItems(fonts)
 
         self.spin_base_size = QSpinBox()
+        self.spin_base_size.setFixedHeight(28)
         self.spin_base_size.setRange(8, 16)
         self.spin_base_size.setValue(10)
         self.spin_base_size.setSuffix(" pt")
@@ -125,9 +140,11 @@ class SettingsPanel(QGroupBox):
         self.spin_base_size.setValue(8)
 
         self.combo_line_spacing = QComboBox()
+        self.combo_line_spacing.setFixedHeight(28)
         self.combo_line_spacing.addItems(["기본 (템플릿 종속 1.6)", "1.0 (좁게)", "1.15 (옛날 방식)", "1.5 (조금 넓게)", "1.6 (추천: 모던)", "1.8 (조판 느낌)"])
 
         self.combo_margins = QComboBox()
+        self.combo_margins.setFixedHeight(28)
         self.combo_margins.addItems(["기본", "좁게", "넓게"])
 
         self.chk_justify = QCheckBox("본문 양쪽 맞춤 적용")
@@ -183,4 +200,6 @@ class SettingsPanel(QGroupBox):
             "cover_subtitle": self.edit_cover_subtitle.text().strip(),
             "cover_author": self.edit_cover_author.text().strip(),
             "auto_toc": self.chk_auto_toc.isChecked(),
+            "header_text": self.edit_header_text.text().strip(),
+            "page_numbers": self.chk_page_numbers.isChecked(),
         }
