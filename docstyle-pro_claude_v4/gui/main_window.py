@@ -26,6 +26,7 @@ from .settings_panel   import SettingsPanel
 from .api_settings_dialog import ApiSettingsDialog
 from .ai_organizer_dialog import AiOrganizerDialog
 from .vault_explorer import VaultExplorer
+from .insight_panel import InsightPanel
 from bridge.ai_organizer import generate_draft, inline_edit, generate_toc
 from bridge.vault_indexer import index_document
 import markdown
@@ -387,6 +388,9 @@ class LeftPanel(QWidget):
 
         self.doc_tabs.addTab(tab1_widget, "📁 파일 로드")
         self.doc_tabs.addTab(tab2_widget, "📝 직접 작성")
+        
+        self.insight_panel = InsightPanel()
+        self.doc_tabs.addTab(self.insight_panel, "💡 인사이트 랩")
 
         sec_ai = QLabel("② AI 원고 정리 (선택)")
         sec_ai.setFont(QFont("Arial", 10, QFont.Weight.Bold))

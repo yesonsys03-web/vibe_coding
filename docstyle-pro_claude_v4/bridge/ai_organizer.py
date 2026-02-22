@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from .vault_indexer import query_vault
 
 # Try to import providers (they should be installed via uv)
 try:
@@ -59,6 +60,19 @@ Follow these strict rules:
 3. Under each chapter, use bullet points (`- `) to briefly describe what will be covered in that chapter.
 4. DO NOT write paragraphs of content. This is JUST an outline.
 5. DO NOT add conversational filler. Output ONLY the Markdown document.
+"""
+
+RAG_PROMPT = """
+You are a brilliant AI assistant living inside the user's personal Knowledge Vault.
+The user is asking a question or requesting ideas based on their accumulated writings.
+You will be provided with [RETRIEVED CONTEXT], which contains relevant excerpts from the user's own Markdown files.
+
+Follow these strict rules:
+1. Ground your answer PRIMARILY in the provided [RETRIEVED CONTEXT].
+2. If the context doesn't contain the answer, you can use your general knowledge, but clearly state that you are doing so.
+3. Synthesize the ideas intelligently to give the user new insights, connections, or structural suggestions.
+4. Use clean, readable Markdown syntax for your response.
+5. Write in the same language the user asks the question in (usually Korean).
 """
 
 INLINE_PROMPTS = {
@@ -153,6 +167,40 @@ def inline_edit(text: str, mode: str) -> str:
         return _call_anthropic(creds.get("claude_key"), text, system_prompt)
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), text, system_prompt)
+    else:
+        raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
+
+def chat_with_vault(user_query: str) -> str:
+    """
+    RAG-based chat: Retrieves relevant chunks from the vault, builds context,
+    and asks the LLM to synthesize an answer.
+    """
+    creds = get_credentials()
+    provider = creds.get("provider", "")
+    
+    # 1. Retrieve Context from ChromaDB
+    results = query_vault(user_query, n_results=5)
+    
+    context_text = ""
+    for idx, r in enumerate(results):
+        context_text += f"--- Excerpt {idx+1} from {r['filename']} ---\n{r['content']}\n\n"
+        
+    if not context_text.strip():
+        context_text = "No relevant context found in the vault."
+        
+    # 2. Build the final Prompt
+    full_prompt = (
+        f"[USER QUERY]\n{user_query}\n\n"
+        f"[RETRIEVED CONTEXT]\n{context_text}\n\n"
+        f"Please answer the user query based on the retrieved context above."
+    )
+
+    if "OpenAI" in provider:
+        return _call_openai(creds.get("openai_key"), full_prompt, RAG_PROMPT)
+    elif "Anthropic" in provider:
+        return _call_anthropic(creds.get("claude_key"), full_prompt, RAG_PROMPT)
+    elif "Google" in provider:
+        return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), full_prompt, RAG_PROMPT)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
