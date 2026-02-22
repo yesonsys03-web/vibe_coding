@@ -25,6 +25,7 @@ from .template_selector import TemplateSelector
 from .settings_panel   import SettingsPanel
 from .api_settings_dialog import ApiSettingsDialog
 from .ai_organizer_dialog import AiOrganizerDialog
+from .vault_explorer import VaultExplorer
 from bridge.ai_organizer import generate_draft, inline_edit, generate_toc
 import markdown
 
@@ -473,6 +474,7 @@ class MainWindow(QMainWindow):
         self._loaded_path = ""
         self._output_path = ""
         self._template_id = "01"
+        self._active_vault_file = None
 
         self.setWindowTitle("DocStyle Pro")
         self.setMinimumSize(1100, 720)
@@ -508,13 +510,16 @@ class MainWindow(QMainWindow):
         self._right.setMinimumWidth(240)
         self._right.setMaximumWidth(320)
         self._right.setStyleSheet("background: #F8FAFC; border-left: 1px solid #E5E7EB;")
+        
+        self._vault_explorer = VaultExplorer()
 
+        self.main_splitter.addWidget(self._vault_explorer)
         self.main_splitter.addWidget(self._left_scroll)
         self.main_splitter.addWidget(self._center)
         self.main_splitter.addWidget(self._right)
         
-        # Set initial ratio: Left (wider for editor), Center (templates), Right (preview)
-        self.main_splitter.setSizes([500, 400, 260])
+        # Set initial ratio: Vault, Left (editor), Center (templates), Right (preview)
+        self.main_splitter.setSizes([220, 500, 400, 260])
         
         root.addWidget(self.main_splitter, 1)
 
@@ -535,6 +540,9 @@ class MainWindow(QMainWindow):
         self._center.template_selected.connect(self._on_template_selected)
         
         self._left.text_editor.textChanged.connect(self._update_live_preview)
+        self._left.text_editor.textChanged.connect(self._auto_save_vault_file)
+        
+        self._vault_explorer.file_selected.connect(self._on_vault_file_selected)
         
         # Toolbar connect
         self._left.btn_md_h1.clicked.connect(lambda: self._insert_md_snippet("# ", ""))
@@ -585,6 +593,29 @@ class MainWindow(QMainWindow):
         </style>
         """
         self._left.text_preview.setHtml(css + html)
+
+    def _on_vault_file_selected(self, path: str):
+        self._active_vault_file = path
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            # Block signals so auto-save doesn't fire while setting text
+            self._left.text_editor.blockSignals(True)
+            self._left.text_editor.setPlainText(content)
+            self._left.text_editor.blockSignals(False)
+            self._update_live_preview()
+            self._left.doc_tabs.setCurrentIndex(1) # Switch to Editor tab
+        except Exception as e:
+            print(f"Failed to read vault file: {e}")
+
+    def _auto_save_vault_file(self):
+        if self._active_vault_file:
+            content = self._left.text_editor.toPlainText()
+            try:
+                with open(self._active_vault_file, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            except Exception as e:
+                print(f"Failed to auto-save vault file: {e}")
 
     def _on_ai_draft_clicked(self):
         settings = self._left.settings_panel.get_settings()
