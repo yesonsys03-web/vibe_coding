@@ -581,6 +581,18 @@ class MainWindow(QMainWindow):
         
         # Connect InsightPanel send button to inject checked files from VaultExplorer
         self._left.insight_panel.btn_send.clicked.connect(self._on_insight_send_clicked)
+        
+        # Connect Tab changes to trigger Smart Guide loading
+        self._left.doc_tabs.currentChanged.connect(self._on_tab_changed)
+        
+        # Also trigger if items are checked while in the Insight tab
+        self._vault_explorer.file_list.itemChanged.connect(lambda item: self._on_tab_changed(self._left.doc_tabs.currentIndex()))
+
+    def _on_tab_changed(self, index: int):
+        # Index 2 is Insight Lab
+        if index == 2:
+            checked_files = self._vault_explorer.get_checked_files()
+            self._left.insight_panel.load_guide_questions(checked_files)
 
     def _on_insight_send_clicked(self):
         checked_files = self._vault_explorer.get_checked_files()

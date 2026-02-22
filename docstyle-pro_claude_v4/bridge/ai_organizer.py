@@ -76,6 +76,20 @@ Follow these strict rules:
 6. Write in the same language the user asks the question in (usually Korean).
 """
 
+GUIDE_PROMPT = """
+You are a brilliant AI assistant analyzing a user's local Knowledge Vault.
+Based on the provided [CONTEXT] texts, generate EXACTLY 3 highly insightful, short, actionable questions that the user could ask you to gain better understanding, uncover new themes, or overcome a block in their writing.
+
+Rules:
+1. Each question must be short (under 30 characters if possible) and extremely relevant.
+2. Return ONLY the 3 questions separated by a newline (`\\n`). Do NOT add numbers, bullets, or conversational filler.
+3. Write the questions in Korean.
+Example output:
+주인공의 진짜 동기는 뭘까?
+이 파일들 간의 공통된 주제는?
+결말을 어떻게 개선할 수 있을까?
+"""
+
 INLINE_PROMPTS = {
     "polish": "You are a professional editor. Please refine and polish the user's text to make it sound more professional, engaging, and grammatically perfect. Maintain the original language and tone. OUTPUT ONLY THE REVISED TEXT without any filler.",
     "expand": "You are a creative writer. Elaborate and expand on the user's text. Add more details, vivid descriptions, or logical explanations to make it a rich, complete paragraph. OUTPUT ONLY THE EXPANDED TEXT without any filler.",
@@ -201,8 +215,51 @@ def chat_with_vault(query_text: str, filter_files: list[str] = None) -> tuple[st
         answer = _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), full_prompt, RAG_PROMPT)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
+        raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
         
     return answer, results
+
+def generate_guide_questions(filter_files: list[str] = None) -> list[str]:
+    """
+    RAG-based generation of 3 insightful questions based on the current context.
+    Returns a list of 3 strings.
+    """
+    creds = get_credentials()
+    provider = creds.get("provider", "")
+    
+    # Just query somewhat randomly or broadly to get a sense of the selected files
+    # Using a generic query since we just want the context chunks
+    results = query_vault("주요 내용, 핵심 주제, 등장인물, 갈등, 정보", n_results=3, filter_files=filter_files)
+    
+    if not results:
+        # Fallback if vault is empty
+        return [
+            "여기에 어떤 글을 쓸 계획인가요?",
+            "이 보관함의 주요 목적은 무엇인가요?",
+            "새로운 아이디어가 필요하신가요?"
+        ]
+        
+    context_text = ""
+    for r in results:
+        context_text += f"[{r['filename']}] {r['content'][:300]}...\n\n"
+        
+    full_prompt = f"[CONTEXT]\n{context_text}"
+    
+    answer = ""
+    try:
+        if "OpenAI" in provider:
+            answer = _call_openai(creds.get("openai_key"), full_prompt, GUIDE_PROMPT)
+        elif "Anthropic" in provider:
+            answer = _call_anthropic(creds.get("claude_key"), full_prompt, GUIDE_PROMPT)
+        elif "Google" in provider:
+            answer = _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), full_prompt, GUIDE_PROMPT)
+        else:
+            raise ValueError()
+            
+        questions = [q.strip("- 1234567890.[]*") for q in answer.split('\n') if q.strip()]
+        return questions[:3] if len(questions) >= 3 else (questions + ["추가 질문 1", "추가 질문 2"])[:3]
+    except Exception:
+        return ["이 문서의 핵심은?", "등장인물 분석", "문맥 요약하기"]
 
 def _call_openai(api_key: str, raw_text: str, system_prompt: str = ORGANIZE_PROMPT) -> str:
     if not OpenAI:
