@@ -161,8 +161,18 @@ class VaultExplorer(QWidget):
         md_files = sorted(self.vault_dir.glob("*.md"), key=os.path.getmtime, reverse=True)
         for f in md_files:
             item = QListWidgetItem(f.stem) # Show without .md extension
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Unchecked)
             item.setData(Qt.ItemDataRole.UserRole, str(f))
             self.file_list.addItem(item)
+            
+    def get_checked_files(self) -> list[str]:
+        checked = []
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            if item.checkState() == Qt.CheckState.Checked:
+                checked.append(item.data(Qt.ItemDataRole.UserRole))
+        return checked
 
     def _create_new_file(self):
         name, ok = QInputDialog.getText(self, "새 문서", "파일 이름을 입력하세요 (확장자 제외):")

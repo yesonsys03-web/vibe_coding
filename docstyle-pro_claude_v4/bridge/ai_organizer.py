@@ -171,17 +171,16 @@ def inline_edit(text: str, mode: str) -> str:
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
-def chat_with_vault(user_query: str) -> tuple[str, list[dict]]:
+def chat_with_vault(query_text: str, filter_files: list[str] = None) -> tuple[str, list]:
     """
-    RAG-based chat: Retrieves relevant chunks from the vault, builds context,
-    and asks the LLM to synthesize an answer.
-    Returns (answer_string, list_of_context_dicts).
+    RAG-based chat using ChromaDB vectors.
+    Returns (answer, contexts)
     """
     creds = get_credentials()
     provider = creds.get("provider", "")
     
-    # 1. Retrieve Context from ChromaDB
-    results = query_vault(user_query, n_results=5)
+    # 1. Query ChromaDB for relevant exact chunks
+    results = query_vault(query_text, n_results=5, filter_files=filter_files)
     
     context_text = ""
     for idx, r in enumerate(results):
@@ -191,12 +190,9 @@ def chat_with_vault(user_query: str) -> tuple[str, list[dict]]:
         context_text = "No relevant context found in the vault."
         
     # 2. Build the final Prompt
-    full_prompt = (
-        f"[USER QUERY]\n{user_query}\n\n"
-        f"[RETRIEVED CONTEXT]\n{context_text}\n\n"
-        f"Please answer the user query based on the retrieved context above, heavily citing your sources using [1], [2] format."
-    )
-
+    full_prompt = f"User Query: {query_text}\n\nContext blocks:\n{context_text}"
+    
+    answer = ""
     if "OpenAI" in provider:
         answer = _call_openai(creds.get("openai_key"), full_prompt, RAG_PROMPT)
     elif "Anthropic" in provider:
