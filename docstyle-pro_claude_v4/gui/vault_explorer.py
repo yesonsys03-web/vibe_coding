@@ -1,11 +1,59 @@
 import os
+import shutil
 from pathlib import Path
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon, QAction
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, 
-    QPushButton, QMessageBox, QInputDialog, QListWidgetItem, QMenu
+    QPushButton, QMessageBox, QInputDialog, QListWidgetItem, QMenu,
+    QFileDialog, QDialog, QLineEdit, QTextEdit
 )
+import subprocess
+
+# Optional parsers for Add Source
+try:
+    from pypdf import PdfReader
+except ImportError:
+    PdfReader = None
+
+try:
+    from docx import Document
+except ImportError:
+    Document = None
+
+class PasteSourceDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("텍스트 붙여넣기")
+        self.resize(500, 400)
+        
+        layout = QVBoxLayout(self)
+        self.title_input = QLineEdit()
+        self.title_input.setPlaceholderText("소스 제목을 입력하세요...")
+        self.title_input.setStyleSheet("padding: 8px; border: 1px solid #CBD5E1; border-radius: 4px;")
+        
+        self.content_input = QTextEdit()
+        self.content_input.setPlaceholderText("여기에 텍스트 본문을 붙여넣으세요...")
+        self.content_input.setStyleSheet("padding: 8px; border: 1px solid #CBD5E1; border-radius: 4px;")
+        
+        btn_layout = QHBoxLayout()
+        btn_save = QPushButton("저장")
+        btn_save.setStyleSheet("background: #8B5CF6; color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold;")
+        btn_save.clicked.connect(self.accept)
+        
+        btn_cancel = QPushButton("취소")
+        btn_cancel.setStyleSheet("background: #F1F5F9; color: #475569; padding: 6px 12px; border-radius: 4px;")
+        btn_cancel.clicked.connect(self.reject)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(btn_cancel)
+        btn_layout.addWidget(btn_save)
+        
+        layout.addWidget(QLabel("소스 제목:"))
+        layout.addWidget(self.title_input)
+        layout.addWidget(QLabel("본문 내용:"))
+        layout.addWidget(self.content_input)
+        layout.addLayout(btn_layout)
 
 class VaultExplorer(QWidget):
     file_selected = pyqtSignal(str) # Emits the full absolute path of the selected .md file
@@ -65,9 +113,26 @@ class VaultExplorer(QWidget):
         # Header
         header_layout = QHBoxLayout()
         header_lbl = QLabel("📚 내 소스 보관함")
-        self.btn_new = QPushButton("+ 새 원고")
+        self.btn_new = QPushButton("➕ 소스 추가")
         self.btn_new.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_new.clicked.connect(self._create_new_file)
+        
+        self.new_menu = QMenu(self)
+        self.new_menu.setStyleSheet("QMenu { background: white; border: 1px solid #ccc; font-size: 13px; } QMenu::item { padding: 8px 24px; } QMenu::item:selected { background: #DBEAFE; color: #1D4ED8; font-weight: bold; }")
+        
+        act_empty = QAction("📝 빈 문서 쓰기", self)
+        act_empty.triggered.connect(self._create_new_file)
+        
+        act_paste = QAction("📋 텍스트 붙여넣기", self)
+        act_paste.triggered.connect(self._on_paste_text)
+        
+        act_import = QAction("📂 파일 가져오기", self)
+        act_import.triggered.connect(self._on_import_files)
+        
+        self.new_menu.addAction(act_empty)
+        self.new_menu.addAction(act_paste)
+        self.new_menu.addAction(act_import)
+        
+        self.btn_new.setMenu(self.new_menu)
         
         header_layout.addWidget(header_lbl)
         header_layout.addStretch()
@@ -100,7 +165,7 @@ class VaultExplorer(QWidget):
             self.file_list.addItem(item)
 
     def _create_new_file(self):
-        name, ok = QInputDialog.getText(self, "새 소스 생성", "파일 이름을 입력하세요 (확장자 제외):")
+        name, ok = QInputDialog.getText(self, "새 문서", "파일 이름을 입력하세요 (확장자 제외):")
         if ok and name.strip():
             safe_name = name.strip()
             new_file = self.vault_dir / f"{safe_name}.md"
@@ -111,14 +176,90 @@ class VaultExplorer(QWidget):
             # Create empty file
             new_file.touch()
             self.refresh_list()
+            self._select_and_emit(new_file)
+
+    def _on_paste_text(self):
+        dlg = PasteSourceDialog(self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            title = dlg.title_input.text().strip()
+            content = dlg.content_input.toPlainText()
+            if not title:
+                title = "제목_없음"
             
-            # Auto-select the newly created file
-            for i in range(self.file_list.count()):
-                item = self.file_list.item(i)
-                if item.data(Qt.ItemDataRole.UserRole) == str(new_file):
-                    self.file_list.setCurrentItem(item)
-                    self.file_selected.emit(str(new_file))
-                    break
+            safe_name = title.replace("/", "_").replace("\\", "_")
+            new_file = self.vault_dir / f"{safe_name}.md"
+            
+            counter = 1
+            while new_file.exists():
+                new_file = self.vault_dir / f"{safe_name}_{counter}.md"
+                counter += 1
+                
+            with open(new_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+                
+            self.refresh_list()
+            self._select_and_emit(new_file)
+
+    def _on_import_files(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self, 
+            "소스 파일 선택", 
+            str(Path.home()), 
+            "Supported Files (*.txt *.md *.pdf *.docx)"
+        )
+        
+        if not files:
+            return
+            
+        success_count = 0
+        dest_file = None
+        for path_str in files:
+            src_path = Path(path_str)
+            safe_name = src_path.stem.replace("/", "_").replace("\\", "_")
+            ext = src_path.suffix.lower()
+            
+            dest_file = self.vault_dir / f"{safe_name}.md"
+            counter = 1
+            while dest_file.exists():
+                dest_file = self.vault_dir / f"{safe_name}_{counter}.md"
+                counter += 1
+                
+            try:
+                if ext in ['.txt', '.md']:
+                    shutil.copy2(src_path, dest_file)
+                elif ext == '.pdf' and PdfReader:
+                    reader = PdfReader(str(src_path))
+                    text = ""
+                    for page in reader.pages:
+                        text += page.extract_text() + "\n\n"
+                    with open(dest_file, 'w', encoding='utf-8') as f:
+                        f.write(text.strip())
+                elif ext == '.docx' and Document:
+                    doc = Document(str(src_path))
+                    text = "\n".join([p.text for p in doc.paragraphs])
+                    with open(dest_file, 'w', encoding='utf-8') as f:
+                        f.write(text.strip())
+                else:
+                    if ext in ['.pdf', '.docx']:
+                        print(f"Failed: missing dependencies for {ext}")
+                    continue
+                success_count += 1
+            except Exception as e:
+                print(f"Failed to import {src_path.name}: {e}")
+                
+        if success_count > 0:
+            self.refresh_list()
+            if dest_file:
+                self._select_and_emit(dest_file)
+            QMessageBox.information(self, "가져오기 완료", f"{success_count}개의 파일을 성공적으로 보관함에 추가했습니다.")
+
+    def _select_and_emit(self, new_file: Path):
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == str(new_file):
+                self.file_list.setCurrentItem(item)
+                self.file_selected.emit(str(new_file))
+                break
 
     def _on_item_clicked(self, item):
         path = item.data(Qt.ItemDataRole.UserRole)
