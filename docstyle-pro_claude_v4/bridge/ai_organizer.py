@@ -47,6 +47,19 @@ Follow these strict rules:
 6. DO NOT add conversational filler like "Here is your draft:". Output ONLY the Markdown document.
 """
 
+TOC_PROMPT = """
+You are an expert book outliner and structural editor.
+The user will provide you with a Book Title, and optionally a Subtitle and Header keyword.
+Your task is to generate ONLY the Table of Contents (Outline) for this book.
+
+Follow these strict rules:
+1. Start with a `# ` Main Title.
+2. Generate a logical sequence of chapters using Heading 2 (`## `).
+3. Under each chapter, use bullet points (`- `) to briefly describe what will be covered in that chapter.
+4. DO NOT write paragraphs of content. This is JUST an outline.
+5. DO NOT add conversational filler. Output ONLY the Markdown document.
+"""
+
 INLINE_PROMPTS = {
     "polish": "You are a professional editor. Please refine and polish the user's text to make it sound more professional, engaging, and grammatically perfect. Maintain the original language and tone. OUTPUT ONLY THE REVISED TEXT without any filler.",
     "expand": "You are a creative writer. Elaborate and expand on the user's text. Add more details, vivid descriptions, or logical explanations to make it a rich, complete paragraph. OUTPUT ONLY THE EXPANDED TEXT without any filler.",
@@ -98,6 +111,26 @@ def generate_draft(title: str, subtitle: str, header: str) -> str:
         return _call_anthropic(creds.get("claude_key"), prompt_text, DRAFT_PROMPT)
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), prompt_text, DRAFT_PROMPT)
+    else:
+        raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
+
+def generate_toc(title: str, subtitle: str, header: str) -> str:
+    """
+    Generates a Table of Contents (Outline) based on metadata.
+    """
+    creds = get_credentials()
+    provider = creds.get("provider", "")
+    
+    prompt_text = f"Title: {title}\n"
+    if subtitle: prompt_text += f"Subtitle: {subtitle}\n"
+    if header: prompt_text += f"Key Theme (Header): {header}\n"
+
+    if "OpenAI" in provider:
+        return _call_openai(creds.get("openai_key"), prompt_text, TOC_PROMPT)
+    elif "Anthropic" in provider:
+        return _call_anthropic(creds.get("claude_key"), prompt_text, TOC_PROMPT)
+    elif "Google" in provider:
+        return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), prompt_text, TOC_PROMPT)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
