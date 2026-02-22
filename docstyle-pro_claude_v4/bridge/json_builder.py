@@ -172,6 +172,8 @@ def build_json(
     author = custom_settings.get("cover_author") or parsed.meta.author
     subtitle = custom_settings.get("cover_subtitle", "")
     auto_toc = custom_settings.get("auto_toc", True)
+    header_text = custom_settings.get("header_text", "")
+    page_numbers = custom_settings.get("page_numbers", True)
 
     payload = {
         "template":      template_id,
@@ -182,6 +184,8 @@ def build_json(
             "author":  author,
             "chapter": parsed.meta.chapter,
             "auto_toc": auto_toc,
+            "header_text": header_text,
+            "page_numbers": page_numbers,
         },
         "image_base_dir": parsed.image_base_dir,
         "elements":       serialized_elements,

@@ -10,9 +10,9 @@ from pathlib import Path
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
-    QApplication, QFileDialog, QHBoxLayout, QLabel,
+    QFileDialog, QHBoxLayout, QLabel,
     QMainWindow, QMessageBox, QPushButton,
-    QStatusBar, QVBoxLayout, QWidget, QInputDialog
+    QStatusBar, QVBoxLayout, QWidget, QScrollArea
 )
 
 if str(Path(__file__).parent.parent) not in sys.path:
@@ -23,6 +23,8 @@ from .preview_panel    import PreviewPanel
 from .progress_dialog  import ProgressDialog
 from .template_selector import TemplateSelector
 from .settings_panel   import SettingsPanel
+from .api_settings_dialog import ApiSettingsDialog
+from .ai_organizer_dialog import AiOrganizerDialog
 
 APP_VERSION = "1.0.0"
 
@@ -66,8 +68,7 @@ class AppHeader(QWidget):
 class LeftPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(280)
-        self.setStyleSheet("background: #FFFFFF; border-right: 1px solid #E5E7EB;")
+        self.setStyleSheet("background: #FFFFFF;")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
@@ -99,6 +100,44 @@ class LeftPanel(QWidget):
         hint.setStyleSheet("color: #64748B; background: #F8FAFC; border-radius: 6px; padding: 8px;")
         hint.setWordWrap(True)
 
+        sec_ai = QLabel("② AI 원고 정리 (선택)")
+        sec_ai.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+        sec_ai.setStyleSheet("color: #374151;")
+
+        ai_layout = QHBoxLayout()
+        self.btn_ai_organize = QPushButton("✨ AI 원고 정리")
+        self.btn_ai_organize.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ai_organize.setStyleSheet("""
+            QPushButton {
+                background: #8B5CF6;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 6px;
+                padding: 8px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover { background: #7C3AED; }
+            QPushButton:disabled { background: #E5E7EB; color: #9CA3AF; }
+        """)
+        self.btn_ai_settings = QPushButton("⚙️ 설정")
+        self.btn_ai_settings.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ai_settings.setFixedWidth(60)
+        self.btn_ai_settings.setStyleSheet("""
+            QPushButton {
+                background: #F1F5F9;
+                color: #475569;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 8px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover { background: #E2E8F0; }
+        """)
+        ai_layout.addWidget(self.btn_ai_organize, 1)
+        ai_layout.addWidget(self.btn_ai_settings)
+
         sec2 = QLabel("③ 변환 실행")
         sec2.setFont(QFont("Arial", 10, QFont.Weight.Bold))
         sec2.setStyleSheet("color: #374151;")
@@ -117,6 +156,11 @@ class LeftPanel(QWidget):
         layout.addWidget(self.drop_zone)
         layout.addWidget(hint)
         layout.addSpacing(4)
+        
+        layout.addWidget(sec_ai)
+        layout.addLayout(ai_layout)
+        layout.addSpacing(4)
+        
         layout.addWidget(self.settings_panel)
         layout.addSpacing(4)
         layout.addWidget(sec2)
@@ -167,13 +211,20 @@ class MainWindow(QMainWindow):
         body.setSpacing(0)
 
         self._left   = LeftPanel()
+        self._left_scroll = QScrollArea()
+        self._left_scroll.setWidget(self._left)
+        self._left_scroll.setWidgetResizable(True)
+        self._left_scroll.setFixedWidth(290)
+        self._left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._left_scroll.setStyleSheet("QScrollArea { border: none; border-right: 1px solid #E5E7EB; background: #FFFFFF; }")
+
         self._center = TemplateSelector()
         self._right  = PreviewPanel()
         self._right.setMinimumWidth(240)
         self._right.setMaximumWidth(320)
         self._right.setStyleSheet("background: #F8FAFC; border-left: 1px solid #E5E7EB;")
 
-        body.addWidget(self._left)
+        body.addWidget(self._left_scroll)
         body.addWidget(self._center, 1)
         body.addWidget(self._right)
         root.addLayout(body, 1)
@@ -185,10 +236,35 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self):
         self._left.btn_new_doc.clicked.connect(self._on_new_doc_clicked)
+        self._left.btn_ai_settings.clicked.connect(self._on_ai_settings_clicked)
+        self._left.btn_ai_organize.clicked.connect(self._on_ai_organize_clicked)
         self._left.drop_zone.file_loaded.connect(self._on_file_loaded)
         self._left.drop_zone.file_error.connect(self._on_file_error)
         self._left.convert_btn.clicked.connect(self._on_convert_clicked)
         self._center.template_selected.connect(self._on_template_selected)
+
+    def _on_ai_settings_clicked(self):
+        dlg = ApiSettingsDialog(self)
+        dlg.exec()
+
+    def _on_ai_organize_clicked(self):
+        dlg = AiOrganizerDialog(self)
+        if dlg.exec():
+            # User accepted the result, save it as a new .md file
+            save_path, _ = QFileDialog.getSaveFileName(
+                self, "정리된 원고 저장", str(Path.home() / "AI_정리_원고.md"), "Markdown files (*.md)"
+            )
+            if save_path:
+                try:
+                    with open(save_path, 'w', encoding='utf-8') as f:
+                        f.write(dlg.final_md)
+                    
+                    import subprocess
+                    subprocess.run(["open", save_path])
+                    self._left.drop_zone._process_path(save_path)
+                    self._status.showMessage(f"AI 정리 문서가 열렸습니다. 내용 추가 확인 후 변환을 누르세요. ({save_path})")
+                except Exception as e:
+                    QMessageBox.critical(self, "오류", f"파일 저장 중 오류가 발생했습니다.\n\n{e}")
 
     def _on_new_doc_clicked(self):
         templates = {

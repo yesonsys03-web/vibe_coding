@@ -14,7 +14,7 @@
 const {
   Document, Header, Footer, Paragraph, TextRun,
   AlignmentType, BorderStyle, ShadingType, LevelFormat,
-  TableOfContents,
+  TableOfContents, PageNumber,
 } = require("docx");
 
 const E = require("./elements");
@@ -45,31 +45,58 @@ const makeNumbering = (C) => ({
 // ─────────────────────────────────────────────
 // Header / Footer 공통 생성
 // ─────────────────────────────────────────────
-const makeHeader = (meta, C) =>
-  new Header({
+const makeHeader = (meta, C) => {
+  const leftText = meta.header_text ? meta.header_text : `${meta.title || ""}    `;
+  const rightText = meta.header_text ? "" : (meta.chapter || "");
+
+  return new Header({
     children: [
       new Paragraph({
         border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.RULE, space: 2 } },
         spacing: { before: 0, after: 100 },
         children: [
-          E.run(`${meta.title || ""}    `, { size: 18, color: C.GRAY3 }, C),
-          E.run(meta.chapter || "", { size: 18, color: C.BLUE, bold: true }, C),
+          E.run(leftText, { size: 18, color: C.GRAY3 }, C),
+          E.run(rightText, { size: 18, color: C.BLUE, bold: true }, C),
         ],
       }),
     ],
   });
+};
 
-const makeFooter = (meta, C) =>
-  new Footer({
-    children: [
+const makeFooter = (meta, C) => {
+  const footerChildren = [];
+  const copyrightText = E.run(`© ${meta.author || ""}  |  본 원고는 저작권법에 의해 보호됩니다`, { size: 18, color: C.GRAY3 }, C);
+  const showPageNum = meta.page_numbers !== false;
+
+  if (showPageNum) {
+    footerChildren.push(
       new Paragraph({
         border: { top: { style: BorderStyle.SINGLE, size: 4, color: C.RULE, space: 2 } },
-        alignment: AlignmentType.RIGHT,
+        alignment: AlignmentType.CENTER,
         spacing: { before: 100, after: 0 },
-        children: [E.run(`© ${meta.author || ""}  |  본 원고는 저작권법에 의해 보호됩니다`, { size: 18, color: C.GRAY3 }, C)],
-      }),
-    ],
-  });
+        children: [
+          new TextRun({
+            children: ["-  ", PageNumber.CURRENT, "  -"],
+            color: C.DARK,
+            size: 18,
+            font: C.FONT || "Arial"
+          })
+        ]
+      })
+    );
+  }
+
+  footerChildren.push(
+    new Paragraph({
+      border: showPageNum ? undefined : { top: { style: BorderStyle.SINGLE, size: 4, color: C.RULE, space: 2 } },
+      alignment: AlignmentType.RIGHT,
+      spacing: { before: showPageNum ? 40 : 100, after: 0 },
+      children: [copyrightText],
+    })
+  );
+
+  return new Footer({ children: footerChildren });
+};
 
 // ─────────────────────────────────────────────
 // 요소 타입 → docx 객체 변환
