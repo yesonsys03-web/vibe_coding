@@ -393,9 +393,6 @@ class LeftPanel(QWidget):
 
         self.doc_tabs.addTab(tab1_widget, "📁 파일 로드")
         self.doc_tabs.addTab(tab2_widget, "📝 직접 작성")
-        
-        self.insight_panel = InsightPanel()
-        self.doc_tabs.addTab(self.insight_panel, "💡 인사이트 랩")
 
         sec_ai = QLabel("② AI 원고 정리 (선택)")
         sec_ai.setFont(QFont("Arial", 10, QFont.Weight.Bold))
@@ -532,7 +529,41 @@ class MainWindow(QMainWindow):
         self._left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._left_scroll.setStyleSheet("QScrollArea { border: none; border-right: 1px solid #E5E7EB; background: #FFFFFF; }")
 
-        self._center = TemplateSelector()
+        # Center section now holds a Tab Widget instead of just TemplateSelector
+        self._center_tabs = QTabWidget()
+        self._center_tabs.setStyleSheet("""
+            QTabBar::tab {
+                background: #F1F5F9;
+                color: #64748B;
+                padding: 10px 16px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid #E2E8F0;
+                border-bottom: none;
+                margin-right: 4px;
+            }
+            QTabBar::tab:selected {
+                background: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #E2E8F0;
+                border-bottom: 2px solid #FFFFFF;
+            }
+            QTabWidget::pane {
+                border: 1px solid #E2E8F0;
+                background: #FFFFFF;
+                border-radius: 6px;
+                border-top-left-radius: 0;
+            }
+        """)
+        
+        self.template_selector = TemplateSelector()
+        self.insight_panel = InsightPanel()
+        
+        self._center_tabs.addTab(self.template_selector, "📚 템플릿 라이브러리")
+        self._center_tabs.addTab(self.insight_panel, "💡 인사이트 랩")
+
         self._right  = PreviewPanel()
         self._right.setMinimumWidth(240)
         self._right.setMaximumWidth(320)
@@ -542,7 +573,7 @@ class MainWindow(QMainWindow):
 
         self.main_splitter.addWidget(self._vault_explorer)
         self.main_splitter.addWidget(self._left_scroll)
-        self.main_splitter.addWidget(self._center)
+        self.main_splitter.addWidget(self._center_tabs)
         self.main_splitter.addWidget(self._right)
         
         # Set initial ratio: Vault, Left (editor), Center (templates), Right (preview)
@@ -564,7 +595,7 @@ class MainWindow(QMainWindow):
         self._left.drop_zone.file_loaded.connect(self._on_file_loaded)
         self._left.drop_zone.file_error.connect(self._on_file_error)
         self._left.convert_btn.clicked.connect(self._on_convert_clicked)
-        self._center.template_selected.connect(self._on_template_selected)
+        self.template_selector.template_selected.connect(self._on_template_selected)
         
         self._left.text_editor.textChanged.connect(self._update_live_preview)
         self._left.text_editor.textChanged.connect(self._auto_save_vault_file)
@@ -580,27 +611,26 @@ class MainWindow(QMainWindow):
         self._left.btn_md_warn.clicked.connect(lambda: self._insert_md_snippet("> [Warning] ", ""))
         
         # Connect InsightPanel send button to inject checked files from VaultExplorer
-        self._left.insight_panel.send_requested.connect(self._on_insight_send_clicked)
+        self.insight_panel.send_requested.connect(self._on_insight_send_clicked)
         
         # Connect Save Note signal from InsightPanel
-        self._left.insight_panel.save_note_requested.connect(self._on_save_note_requested)
+        self.insight_panel.save_note_requested.connect(self._on_save_note_requested)
         
         # Connect Tab changes to trigger Smart Guide loading
-        self._left.doc_tabs.currentChanged.connect(self._on_tab_changed)
+        self._center_tabs.currentChanged.connect(self._on_insight_tab_changed)
         
         # Also trigger if items are checked while in the Insight tab
-        self._vault_explorer.file_list.itemChanged.connect(lambda item: self._on_tab_changed(self._left.doc_tabs.currentIndex()))
+        self._vault_explorer.file_list.itemChanged.connect(lambda item: self._on_insight_tab_changed(self._center_tabs.currentIndex()))
 
-    def _on_tab_changed(self, index: int):
-        # Index 2 is Insight Lab
-        if index == 2:
+    def _on_insight_tab_changed(self, index: int):
+        # Index 1 is Insight Lab
+        if index == 1:
             checked_files = self._vault_explorer.get_checked_files()
-            self._left.insight_panel.load_guide_questions(checked_files)
+            self.insight_panel.load_guide_questions(checked_files)
 
     def _on_insight_send_clicked(self):
         checked_files = self._vault_explorer.get_checked_files()
-        print(f"MainWindow._on_insight_send_clicked triggered. Selected files: {checked_files}")
-        self._left.insight_panel._on_send_clicked(checked_files)
+        self.insight_panel._on_send_clicked(checked_files)
 
     def _on_save_note_requested(self, title: str, content: str):
         safe_name = title.replace("/", "_").replace("\\", "_")
