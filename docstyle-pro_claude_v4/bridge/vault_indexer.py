@@ -3,24 +3,28 @@ from pathlib import Path
 import re
 import chromadb
 
+import threading
+
 # Singleton-like approach for the ChromaDB client
 _chroma_client = None
 _collection = None
+_chroma_lock = threading.Lock()
 
 def get_chroma_collection():
     global _chroma_client, _collection
-    if _chroma_client is None:
-        vault_dir = Path.home() / "Documents" / "DocStyle_Vault"
-        chroma_path = vault_dir / ".chroma"
-        chroma_path.mkdir(parents=True, exist_ok=True)
-        # PersistentClient automatically saves to the specified path
-        _chroma_client = chromadb.PersistentClient(path=str(chroma_path))
-        # We will use the default SentenceTransformers embedding function
-        _collection = _chroma_client.get_or_create_collection(
-            name="docstyle_vault",
-            metadata={"hnsw:space": "cosine"}
-        )
-    return _collection
+    with _chroma_lock:
+        if _chroma_client is None:
+            vault_dir = Path.home() / "Documents" / "DocStyle_Vault"
+            chroma_path = vault_dir / ".chroma"
+            chroma_path.mkdir(parents=True, exist_ok=True)
+            # PersistentClient automatically saves to the specified path
+            _chroma_client = chromadb.PersistentClient(path=str(chroma_path))
+            # We will use the default SentenceTransformers embedding function
+            _collection = _chroma_client.get_or_create_collection(
+                name="docstyle_vault",
+                metadata={"hnsw:space": "cosine"}
+            )
+        return _collection
 
 def chunk_markdown(content: str) -> list[str]:
     """
@@ -56,21 +60,22 @@ def index_document(file_path: str):
     
     # 1. Delete old chunks for this file
     # Chroma allows deleting by metadata matches
-    collection.delete(where={"source": file_path})
+    with _chroma_lock:
+        collection.delete(where={"source": file_path})
 
-    chunks = chunk_markdown(content)
-    if not chunks:
-        return
+        chunks = chunk_markdown(content)
+        if not chunks:
+            return
 
-    # 2. Add new chunks
-    ids = [f"{path_obj.name}_chunk_{i}" for i in range(len(chunks))]
-    metadatas = [{"source": file_path, "filename": path_obj.name} for _ in range(len(chunks))]
+        # 2. Add new chunks
+        ids = [f"{path_obj.name}_chunk_{i}" for i in range(len(chunks))]
+        metadatas = [{"source": file_path, "filename": path_obj.name} for _ in range(len(chunks))]
 
-    collection.add(
-        documents=chunks,
-        metadatas=metadatas,
-        ids=ids
-    )
+        collection.add(
+            documents=chunks,
+            metadatas=metadatas,
+            ids=ids
+        )
 
 def query_vault(query_text: str, n_results: int = 5, filter_files: list[str] = None) -> list[dict]:
     """
@@ -93,7 +98,8 @@ def query_vault(query_text: str, n_results: int = 5, filter_files: list[str] = N
             query_kwargs["where"] = {"filename": {"$in": filenames}}
     
     # Perform semantic search
-    results = collection.query(**query_kwargs)
+    with _chroma_lock:
+        results = collection.query(**query_kwargs)
     
     output = []
     if results and results.get("documents") and len(results["documents"]) > 0:
@@ -131,7 +137,8 @@ def delete_document(file_path: str):
     """
     collection = get_chroma_collection()
     try:
-        collection.delete(where={"source": file_path})
+        with _chroma_lock:
+            collection.delete(where={"source": file_path})
         print(f"Removed {file_path} from Vector DB.")
     except Exception as e:
         print(f"Error removing document from DB: {e}")
