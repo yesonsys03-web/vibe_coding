@@ -19,10 +19,14 @@ class AiInsightThread(QThread):
         self.filter_files = filter_files
 
     def run(self):
+        print("AiInsightThread.run() started with query:", self.query, "and filters:", self.filter_files)
         try:
             result, contexts = chat_with_vault(self.query, filter_files=self.filter_files)
+            print("chat_with_vault returned successfully")
             self.finished.emit(result, contexts, True)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.finished.emit(str(e), [], False)
 
 class AiGuideThread(QThread):
@@ -37,6 +41,8 @@ class AiGuideThread(QThread):
             questions = generate_guide_questions(filter_files=self.filter_files)
             self.finished.emit(questions, True)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.finished.emit([str(e)], False)
 
 class SourceViewerDialog(QDialog):
@@ -87,6 +93,7 @@ class SourceViewerDialog(QDialog):
 
 class InsightPanel(QWidget):
     save_note_requested = pyqtSignal(str, str)
+    send_requested = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -127,6 +134,8 @@ class InsightPanel(QWidget):
                 color: #334155;
             }
         """)
+        layout.addWidget(self.chat_history, 1)
+        
         # Welcome message
         self._append_message("🤖 **AI**: 안녕하세요! 보관함(Vault)에 쌓인 원고들을 모두 읽고 기다리고 있습니다. 궁금한 점이나 새로운 아이디어가 필요하시면 질문해 주세요.")
         
@@ -185,7 +194,7 @@ class InsightPanel(QWidget):
             QPushButton:hover { background: #7C3AED; }
             QPushButton:disabled { background: #C4B5FD; }
         """)
-        # Click handler is wired up in main_window.py to inject VaultExplorer state
+        self.btn_send.clicked.connect(lambda checked=False: self.send_requested.emit())
         
         input_layout.addWidget(self.input_box, 1)
         input_layout.addWidget(self.btn_send)
@@ -196,14 +205,11 @@ class InsightPanel(QWidget):
         # Convert markdown to HTML before appending
         html = markdown.markdown(markdown_text, extensions=['fenced_code', 'tables'])
         
-        # We inject some CSS so the blockquotes/code look nice inside the chat
-        styled_html = f"""
-        <div style="margin-bottom: 20px;">
-            {html}
-        </div>
-        <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 10px 0;">
-        """
+        # In PyQt, complex div wrappers with inline CSS can sometimes break block rendering.
+        # Minimal append string without root wrappers.
+        styled_html = html + "<br><hr><br>"
         
+        # append() automatically puts it at the end and handles blocks correctly
         self.chat_history.append(styled_html)
         
         # Scroll to bottom
@@ -212,8 +218,10 @@ class InsightPanel(QWidget):
         self.chat_history.setTextCursor(cursor)
 
     def _on_send_clicked(self, checked_files: list[str] = None):
+        print(f"InsightPanel._on_send_clicked triggered with {checked_files}")
         text = self.input_box.toPlainText().strip()
         if not text:
+            print("Input box was empty, returning.")
             return
             
         self.input_box.clear()
@@ -222,6 +230,7 @@ class InsightPanel(QWidget):
         self.btn_send.setEnabled(False)
         self.btn_send.setText("생성 중...")
         
+        print("Starting AiInsightThread...")
         # In a real app, `checked_files` would be passed in from MainWindow where it has access to VaultExplorer
         self._thread = AiInsightThread(text, filter_files=checked_files)
         self._thread.finished.connect(self._on_response_received)
@@ -229,9 +238,9 @@ class InsightPanel(QWidget):
 
     def _on_suggested_clicked(self, text: str):
         self.input_box.setText(text)
-        # Note: We rely on the user or main_window to trigger the send, since MainWindow 
-        # normally handles injecting checked_files into _on_send_clicked. For convenience,
-        # we can just leave it in the input box for the user to hit '질문하기' if they want.
+        print("Suggested button clicked, automatically asking...")
+        # Automatically emit the signal so MainWindow triggers the real send
+        self.send_requested.emit()
         
     def load_guide_questions(self, checked_files: list[str] = None):
         """Triggered when tab is opened or files change"""
@@ -286,6 +295,7 @@ class InsightPanel(QWidget):
             webbrowser.open(url.toString())
 
     def _on_response_received(self, result: str, contexts: list, is_success: bool):
+        print(f"InsightPanel._on_response_received triggered. success={is_success}")
         self.btn_send.setEnabled(True)
         self.btn_send.setText("질문하기")
         
@@ -295,6 +305,15 @@ class InsightPanel(QWidget):
             
             self._response_history.append(result)
             history_idx = len(self._response_history) - 1
+            
+            # Remove leading spaces that cause accidental markdown code blocks
+            lines = []
+            for line in result.split("\n"):
+                if line.startswith("    ") or line.startswith("\t"):
+                    lines.append(line.lstrip())
+                else:
+                    lines.append(line)
+            clean_result = "\n".join(lines)
             
             # Replace [1], [2], etc. inside the markdown with custom hyperlinks
             def replacer(match):
@@ -307,10 +326,10 @@ class InsightPanel(QWidget):
                     pass
                 return match.group(0)
                 
-            modified_result = re.sub(r'\[(\d+)\]', replacer, result)
+            modified_result = re.sub(r'\[(\d+)\]', replacer, clean_result)
             
-            # Inject save footer
-            footer = f'<p align="right" style="margin-top: 10px;"><a href="save://{history_idx}" style="color: #10B981; font-weight: bold; text-decoration: none;">[💾 소스로 보관함에 저장하기]</a></p>'
-            self._append_message(f"🤖 **AI**: {modified_result}\n{footer}")
+            # Inject save footer with empty lines to ensure it forms its own block
+            footer = f'\n\n<p align="right" style="margin-top: 10px;"><a href="save://{history_idx}" style="color: #10B981; font-weight: bold; text-decoration: none;">[💾 소스로 보관함에 저장하기]</a></p>\n'
+            self._append_message(f"🤖 **AI**: {modified_result}{footer}")
         else:
             self._append_message(f"❌ **시스템 오류**: 답변을 생성하지 못했습니다.\n\n상세: {result}")

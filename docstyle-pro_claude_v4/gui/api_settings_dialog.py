@@ -99,7 +99,7 @@ class ApiSettingsDialog(QDialog):
         # 1. Provide Selection
         lbl_provider = QLabel("<b>사용할 AI 모델:</b>")
         self.combo_provider = QComboBox()
-        self.combo_provider.addItems(["OpenAI (ChatGPT)", "Anthropic (Claude)", "Google (Gemini)"])
+        self.combo_provider.addItems(["OpenAI (ChatGPT)", "Anthropic (Claude)", "Google (Gemini)", "Groq (Llama 3.3)"])
         self.combo_provider.currentIndexChanged.connect(self._on_provider_changed)
 
         hbox = QHBoxLayout()
@@ -158,6 +158,15 @@ class ApiSettingsDialog(QDialog):
         lay_gm.addStretch()
         self.stack.addWidget(self.page_gemini)
 
+        # Groq Page
+        self.page_groq = QWidget()
+        lay_gr = QFormLayout(self.page_groq)
+        lay_gr.setContentsMargins(0, 0, 0, 0)
+        self.edit_groq_key = QLineEdit()
+        self.edit_groq_key.setEchoMode(QLineEdit.EchoMode.Password)
+        lay_gr.addRow("API Key:", self.edit_groq_key)
+        self.stack.addWidget(self.page_groq)
+
         layout.addWidget(self.stack, 1)
 
         # Buttons
@@ -182,7 +191,7 @@ class ApiSettingsDialog(QDialog):
                     return json.load(f)
             except:
                 pass
-        return {"provider": "OpenAI (ChatGPT)", "openai_key": "", "claude_key": "", "gemini_key": "", "gemini_token": None}
+        return {"provider": "OpenAI (ChatGPT)", "openai_key": "", "claude_key": "", "gemini_key": "", "gemini_token": None, "groq_key": ""}
 
     def _save_credentials(self):
         with open(CREDENTIALS_FILE, 'w') as f:
@@ -197,6 +206,7 @@ class ApiSettingsDialog(QDialog):
         self.edit_openai_key.setText(self._creds.get("openai_key", ""))
         self.edit_claude_key.setText(self._creds.get("claude_key", ""))
         self.edit_gemini_key.setText(self._creds.get("gemini_key", ""))
+        self.edit_groq_key.setText(self._creds.get("groq_key", ""))
         
         if self._creds.get("gemini_token"):
             self.lbl_gemini_status.setText("현재 상태: <b style='color:#10B981'>✅ 성공적으로 연결됨</b>")
@@ -210,6 +220,7 @@ class ApiSettingsDialog(QDialog):
         self._creds["openai_key"] = self.edit_openai_key.text()
         self._creds["claude_key"] = self.edit_claude_key.text()
         self._creds["gemini_key"] = self.edit_gemini_key.text()
+        self._creds["groq_key"] = self.edit_groq_key.text()
         self._save_credentials()
         self.accept()
 

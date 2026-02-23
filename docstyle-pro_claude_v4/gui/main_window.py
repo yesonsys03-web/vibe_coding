@@ -580,7 +580,7 @@ class MainWindow(QMainWindow):
         self._left.btn_md_warn.clicked.connect(lambda: self._insert_md_snippet("> [Warning] ", ""))
         
         # Connect InsightPanel send button to inject checked files from VaultExplorer
-        self._left.insight_panel.btn_send.clicked.connect(self._on_insight_send_clicked)
+        self._left.insight_panel.send_requested.connect(self._on_insight_send_clicked)
         
         # Connect Save Note signal from InsightPanel
         self._left.insight_panel.save_note_requested.connect(self._on_save_note_requested)
@@ -599,6 +599,7 @@ class MainWindow(QMainWindow):
 
     def _on_insight_send_clicked(self):
         checked_files = self._vault_explorer.get_checked_files()
+        print(f"MainWindow._on_insight_send_clicked triggered. Selected files: {checked_files}")
         self._left.insight_panel._on_send_clicked(checked_files)
 
     def _on_save_note_requested(self, title: str, content: str):

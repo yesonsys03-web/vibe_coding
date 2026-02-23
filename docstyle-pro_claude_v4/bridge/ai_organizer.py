@@ -121,6 +121,8 @@ def organize_text(raw_text: str) -> str:
         return _call_anthropic(creds.get("claude_key"), raw_text, ORGANIZE_PROMPT)
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), raw_text, ORGANIZE_PROMPT)
+    elif "Groq" in provider:
+        return _call_groq(creds.get("groq_key"), raw_text, ORGANIZE_PROMPT)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
@@ -142,6 +144,8 @@ def generate_draft(title: str, subtitle: str, header: str, toc: str = "") -> str
         return _call_anthropic(creds.get("claude_key"), prompt_text, DRAFT_PROMPT)
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), prompt_text, DRAFT_PROMPT)
+    elif "Groq" in provider:
+        return _call_groq(creds.get("groq_key"), prompt_text, DRAFT_PROMPT)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
@@ -162,6 +166,8 @@ def generate_toc(title: str, subtitle: str, header: str) -> str:
         return _call_anthropic(creds.get("claude_key"), prompt_text, TOC_PROMPT)
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), prompt_text, TOC_PROMPT)
+    elif "Groq" in provider:
+        return _call_groq(creds.get("groq_key"), prompt_text, TOC_PROMPT)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
@@ -182,6 +188,8 @@ def inline_edit(text: str, mode: str) -> str:
         return _call_anthropic(creds.get("claude_key"), text, system_prompt)
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), text, system_prompt)
+    elif "Groq" in provider:
+        return _call_groq(creds.get("groq_key"), text, system_prompt)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
 
@@ -194,7 +202,9 @@ def chat_with_vault(query_text: str, filter_files: list[str] = None) -> tuple[st
     provider = creds.get("provider", "")
     
     # 1. Query ChromaDB for relevant exact chunks
-    results = query_vault(query_text, n_results=5, filter_files=filter_files)
+    # If the user selected specific files, we can afford to retrieve more chunks (e.g. 20) to capture the whole document.
+    amount = 20 if filter_files else 5
+    results = query_vault(query_text, n_results=amount, filter_files=filter_files)
     
     context_text = ""
     for idx, r in enumerate(results):
@@ -213,8 +223,9 @@ def chat_with_vault(query_text: str, filter_files: list[str] = None) -> tuple[st
         answer = _call_anthropic(creds.get("claude_key"), full_prompt, RAG_PROMPT)
     elif "Google" in provider:
         answer = _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), full_prompt, RAG_PROMPT)
+    elif "Groq" in provider:
+        answer = _call_groq(creds.get("groq_key"), full_prompt, RAG_PROMPT)
     else:
-        raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
         
     return answer, results
@@ -253,6 +264,8 @@ def generate_guide_questions(filter_files: list[str] = None) -> list[str]:
             answer = _call_anthropic(creds.get("claude_key"), full_prompt, GUIDE_PROMPT)
         elif "Google" in provider:
             answer = _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), full_prompt, GUIDE_PROMPT)
+        elif "Groq" in provider:
+            answer = _call_groq(creds.get("groq_key"), full_prompt, GUIDE_PROMPT)
         else:
             raise ValueError()
             
@@ -270,6 +283,24 @@ def _call_openai(api_key: str, raw_text: str, system_prompt: str = ORGANIZE_PROM
     client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": raw_text}
+        ],
+        temperature=0.7
+    )
+    return response.choices[0].message.content
+
+def _call_groq(api_key: str, raw_text: str, system_prompt: str = ORGANIZE_PROMPT) -> str:
+    if not OpenAI:
+        raise ImportError("openai 패키지가 설치되지 않았습니다.")
+    if not api_key:
+        raise ValueError("Groq API Key가 설정되지 않았습니다.")
+    
+    # Use OpenAI client with Groq base URL
+    client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": raw_text}
