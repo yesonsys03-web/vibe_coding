@@ -13,7 +13,7 @@ template_selector.py — DocStyle Pro 템플릿 선택 위젯
 
 from PyQt6.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import (
-    QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QLinearGradient,
+    QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QLinearGradient, QBrush
 )
 from PyQt6.QtWidgets import (
     QFrame, QGridLayout, QLabel, QScrollArea,
@@ -359,7 +359,7 @@ class ThumbnailWidget(QWidget):
         grad = QLinearGradient(0, 0, 0, H)
         grad.setColorAt(0, QColor("#FFFFFF"))
         grad.setColorAt(1, QColor("#F8FAFC"))
-        p.fillRect(self.rect(), grad)
+        p.fillRect(self.rect(), QBrush(grad))
 
         # ── 2. 스타일 결정
         cat = t.get("category", "")
@@ -390,7 +390,7 @@ class ThumbnailWidget(QWidget):
             p.fillRect(QRect(0, 0, 4, hdr_h), _hex(t["accent"]))
 
         # 번호 배지
-        p.setBrush(_hex(t["accent"]))
+        p.setBrush(QBrush(_hex(t["accent"])))
         p.drawEllipse(W - 22, 6, 14, 14)
         p.setPen(QColor("#FFFFFF"))
         p.setFont(QFont("Arial", 7, QFont.Weight.Bold))
@@ -443,7 +443,7 @@ class ThumbnailWidget(QWidget):
             p.fillRect(QRect(20, y+10, 60, 3), _hex(t["box_border"]).darker(110))
 
         # ── 5. 하단 장식 (페이지 번호 느낌)
-        p.setBrush(QColor("#E2E8F0"))
+        p.setBrush(QBrush(QColor("#E2E8F0")))
         p.drawRect(W//2 - 10, H - 10, 20, 2)
 
         # ── 6. 외곽선
