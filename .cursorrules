@@ -1,0 +1,12 @@
+# uv-only Development Policy
+
+To maintain consistency across development environments and avoid dependency conflicts, the following rules apply to this project:
+
+- **NEVER use `pip`**. All package management MUST be done through `uv`.
+- Use `uv add <package>` to install new libraries.
+- Use `uv remove <package>` to uninstall libraries.
+- Use `uv run <script>` to execute Python scripts within the project environment.
+- Use `uv python install <version>` if a specific Python version is missing.
+- When creating new projects, use `uv init`.
+
+This policy ensures that all team members use the same deterministic environment.
