@@ -447,6 +447,7 @@ class ThumbnailWidget(QWidget):
         p.drawRect(W//2 - 10, H - 10, 20, 2)
 
         # ── 6. 외곽선
+        p.setBrush(Qt.BrushStyle.NoBrush)
         p.setPen(QPen(QColor("#E2E8F0"), 1))
         p.drawRect(self.rect().adjusted(0, 0, -1, -1))
         p.end()
