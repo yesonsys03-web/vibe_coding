@@ -99,7 +99,7 @@ class ApiSettingsDialog(QDialog):
         # 1. Provide Selection
         lbl_provider = QLabel("<b>사용할 AI 모델:</b>")
         self.combo_provider = QComboBox()
-        self.combo_provider.addItems(["OpenAI (ChatGPT)", "Anthropic (Claude)", "Google (Gemini)", "Groq (Llama 3.3)"])
+        self.combo_provider.addItems(["OpenAI (ChatGPT)", "Anthropic (Claude)", "Google (Gemini)", "Groq (Llama 3.3)", "Groq (Qwen 2.5 32B)"])
         self.combo_provider.currentIndexChanged.connect(self._on_provider_changed)
 
         hbox = QHBoxLayout()
@@ -213,7 +213,11 @@ class ApiSettingsDialog(QDialog):
             self.btn_gemini_login.setText("다시 로그인하기")
 
     def _on_provider_changed(self, index: int):
-        self.stack.setCurrentIndex(index)
+        # Groq (Qwen 2.5 32B) is index 4 but uses the Groq settings page (index 3)
+        if index == 4:
+            self.stack.setCurrentIndex(3)
+        else:
+            self.stack.setCurrentIndex(index)
 
     def _save_and_close(self):
         self._creds["provider"] = self.combo_provider.currentText()
