@@ -122,7 +122,7 @@ def organize_text(raw_text: str) -> str:
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), raw_text, ORGANIZE_PROMPT)
     elif "Groq" in provider:
-        mdl = "qwen-2.5-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
+        mdl = "qwen/qwen3-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
         return _call_groq(creds.get("groq_key"), raw_text, ORGANIZE_PROMPT, model=mdl)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
@@ -146,7 +146,7 @@ def generate_draft(title: str, subtitle: str, header: str, toc: str = "") -> str
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), prompt_text, DRAFT_PROMPT)
     elif "Groq" in provider:
-        mdl = "qwen-2.5-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
+        mdl = "qwen/qwen3-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
         return _call_groq(creds.get("groq_key"), prompt_text, DRAFT_PROMPT, model=mdl)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
@@ -169,7 +169,7 @@ def generate_toc(title: str, subtitle: str, header: str) -> str:
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), prompt_text, TOC_PROMPT)
     elif "Groq" in provider:
-        mdl = "qwen-2.5-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
+        mdl = "qwen/qwen3-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
         return _call_groq(creds.get("groq_key"), prompt_text, TOC_PROMPT, model=mdl)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
@@ -192,7 +192,7 @@ def inline_edit(text: str, mode: str) -> str:
     elif "Google" in provider:
         return _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), text, system_prompt)
     elif "Groq" in provider:
-        mdl = "qwen-2.5-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
+        mdl = "qwen/qwen3-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
         return _call_groq(creds.get("groq_key"), text, system_prompt, model=mdl)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
@@ -228,7 +228,7 @@ def chat_with_vault(query_text: str, filter_files: list[str] = None) -> tuple[st
     elif "Google" in provider:
         answer = _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), full_prompt, RAG_PROMPT)
     elif "Groq" in provider:
-        mdl = "qwen-2.5-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
+        mdl = "qwen/qwen3-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
         answer = _call_groq(creds.get("groq_key"), full_prompt, RAG_PROMPT, model=mdl)
     else:
         raise ValueError("선택된 AI 모델이 없거나 설정이 올바르지 않습니다. [설정] 창을 확인해주세요.")
@@ -270,7 +270,7 @@ def generate_guide_questions(filter_files: list[str] = None) -> list[str]:
         elif "Google" in provider:
             answer = _call_gemini(creds.get("gemini_key"), creds.get("gemini_token"), full_prompt, GUIDE_PROMPT)
         elif "Groq" in provider:
-            mdl = "qwen-2.5-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
+            mdl = "qwen/qwen3-32b" if "Qwen" in provider else "llama-3.3-70b-versatile"
             answer = _call_groq(creds.get("groq_key"), full_prompt, GUIDE_PROMPT, model=mdl)
         else:
             raise ValueError()
