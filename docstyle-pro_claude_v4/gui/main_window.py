@@ -844,7 +844,7 @@ class MainWindow(QMainWindow):
 
     def _on_template_selected(self, tpl_id: str):
         self._template_id = tpl_id
-        tpl = self._center.get_template_info(tpl_id)
+        tpl = self.template_selector.get_template_info(tpl_id)
         self._status.showMessage(f"선택된 템플릿: {tpl['name']}  ·  {tpl['tag']}")
 
     def _on_convert_clicked(self):
@@ -873,7 +873,7 @@ class MainWindow(QMainWindow):
         temp_dir.mkdir(parents=True, exist_ok=True)
         self._temp_output_path = str(temp_dir / f"{session_id}_t{self._template_id}.docx")
 
-        tpl_name = self._center.get_template_info(self._template_id)["name"]
+        tpl_name = self.template_selector.get_template_info(self._template_id)["name"]
         settings = self._left.settings_panel.get_settings()
         
         dlg = ProgressDialog(
