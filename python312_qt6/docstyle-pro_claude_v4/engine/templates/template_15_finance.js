@@ -17,14 +17,14 @@ const C = {
   GRAY3: "9CA3AF",
 
   ACCENT: "16A34A",
-  BLUE: "15803D",
-  BLUE2: "4ADE80",
+  BLUE: "16A34A",
+  BLUE2: "16A34A",
   BOX_BORDER: "86EFAC",
   GREEN: "15803D",
   AMBER: "92400E",
   RULE: "BBF7D0",
   FONT: "Arial",
-  TYPE: "BUSINESS",
+  TYPE: "EDITORIAL",
 
   NAME: "Finance Pro",
   TAG: "금융·회계",

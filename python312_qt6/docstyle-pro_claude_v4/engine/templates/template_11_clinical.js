@@ -18,13 +18,13 @@ const C = {
 
   ACCENT: "0F766E",
   BLUE: "0F766E",
-  BLUE2: "2DD4BF",
+  BLUE2: "0F766E",
   BOX_BORDER: "99F6E4",
   GREEN: "059669",
   AMBER: "92400E",
   RULE: "CCFBF1",
   FONT: "Arial",
-  TYPE: "BUSINESS",
+  TYPE: "EDITORIAL",
 
   NAME: "Clinical White",
   TAG: "의료·헬스케어",

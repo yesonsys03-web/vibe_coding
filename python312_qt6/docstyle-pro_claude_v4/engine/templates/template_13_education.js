@@ -17,14 +17,14 @@ const C = {
   GRAY3: "A8A29E",
 
   ACCENT: "EA580C",
-  BLUE: "2563EB",
-  BLUE2: "60A5FA",
+  BLUE: "EA580C",
+  BLUE2: "EA580C",
   BOX_BORDER: "93C5FD",
   GREEN: "15803D",
   AMBER: "B45309",
   RULE: "FED7AA",
   FONT: "Arial",
-  TYPE: "BUSINESS",
+  TYPE: "EDITORIAL",
 
   NAME: "Education Plus",
   TAG: "교육·강의",

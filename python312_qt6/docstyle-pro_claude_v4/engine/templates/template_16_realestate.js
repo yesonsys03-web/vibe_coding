@@ -17,14 +17,14 @@ const C = {
   GRAY3: "A8A29E",
 
   ACCENT: "CA8A04",   // 앰버 골드
-  BLUE: "44403C",
+  BLUE: "CA8A04",
   BLUE2: "CA8A04",
   BOX_BORDER: "FDE68A",
   GREEN: "3D6B32",
   AMBER: "92400E",
   RULE: "E7E5E4",
   FONT: "Arial",
-  TYPE: "BUSINESS",
+  TYPE: "EDITORIAL",
 
   NAME: "Real Estate",
   TAG: "부동산·건설",

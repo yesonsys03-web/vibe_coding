@@ -17,14 +17,14 @@ const C = {
   GRAY3: "9CA3AF",
 
   ACCENT: "3B82F6",
-  BLUE: "1D4ED8",
-  BLUE2: "60A5FA",
+  BLUE: "3B82F6",
+  BLUE2: "3B82F6",
   BOX_BORDER: "93C5FD",
   GREEN: "15803D",
   AMBER: "B45309",
   RULE: "BFDBFE",
   FONT: "Arial",
-  TYPE: "BUSINESS",
+  TYPE: "EDITORIAL",
 
   NAME: "Civic Blue",
   TAG: "비영리·공공기관",

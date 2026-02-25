@@ -17,14 +17,14 @@ const C = {
   GRAY3: "9CA3AF",
 
   ACCENT: "F97316",   // 코랄 오렌지
-  BLUE: "0E7490",
-  BLUE2: "22D3EE",
+  BLUE: "F97316",
+  BLUE2: "F97316",
   BOX_BORDER: "A5F3FC",
   GREEN: "0D9488",
   AMBER: "B45309",
   RULE: "CFFAFE",
   FONT: "Arial",
-  TYPE: "BUSINESS",
+  TYPE: "EDITORIAL",
 
   NAME: "HR Connect",
   TAG: "인사·채용",

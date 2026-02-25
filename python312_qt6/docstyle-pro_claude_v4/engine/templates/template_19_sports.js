@@ -17,7 +17,7 @@ const C = {
   GRAY3: "A1A1AA",
 
   ACCENT: "EAB308",   // 네온 옐로우
-  BLUE: "18181B",
+  BLUE: "EAB308",
   BLUE2: "EAB308",
   BOX_BORDER: "FDE047",
   GREEN: "15803D",

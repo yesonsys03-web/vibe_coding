@@ -17,14 +17,14 @@ const C = {
   GRAY3: "9CA3AF",
 
   ACCENT: "B7973A",   // 골드
-  BLUE: "1E3A5F",
+  BLUE: "B7973A",
   BLUE2: "B7973A",
   BOX_BORDER: "D4AF5A",
   GREEN: "1E5F4A",
   AMBER: "92400E",
   RULE: "E8E0CC",
-  FONT: "Georgia",
-  TYPE: "BUSINESS",
+  FONT: "Arial",
+  TYPE: "EDITORIAL",
 
   NAME: "Legal Authority",
   TAG: "법률·법무",

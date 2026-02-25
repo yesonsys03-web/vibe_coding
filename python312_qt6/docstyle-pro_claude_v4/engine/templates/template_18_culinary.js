@@ -17,13 +17,13 @@ const C = {
   GRAY3: "A8A29E",
 
   ACCENT: "F43F5E",
-  BLUE: "9F1239",
-  BLUE2: "FB7185",
+  BLUE: "F43F5E",
+  BLUE2: "F43F5E",
   BOX_BORDER: "FECDD3",
   GREEN: "3D6B32",
   AMBER: "B45309",
   RULE: "FFE4E6",
-  FONT: "Georgia",
+  FONT: "Arial",
   TYPE: "EDITORIAL",
 
   NAME: "Culinary",

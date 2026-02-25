@@ -17,13 +17,13 @@ const C = {
   GRAY3: "9CA3AF",
 
   ACCENT: "EC4899",   // 핫핑크
-  BLUE: "7C3AED",
+  BLUE: "EC4899",
   BLUE2: "EC4899",
   BOX_BORDER: "F9A8D4",
   GREEN: "059669",
   AMBER: "B45309",
   RULE: "E9D5FF",
-  FONT: "Georgia",
+  FONT: "Arial",
   TYPE: "EDITORIAL",
 
   NAME: "Creative Studio",
