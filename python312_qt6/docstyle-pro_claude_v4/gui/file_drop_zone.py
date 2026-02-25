@@ -27,15 +27,15 @@ from PyQt6.QtWidgets import (
 # ─────────────────────────────────────────────
 # 색상 상수
 # ─────────────────────────────────────────────
-COLOR_IDLE      = "#E2E8F0"
-COLOR_HOVER     = "#93C5FD"
-COLOR_ACCEPT    = "#34D399"
-COLOR_REJECT    = "#F87171"
-COLOR_BG_IDLE   = "#F8FAFC"
-COLOR_BG_HOVER  = "#EFF6FF"
+COLOR_IDLE = "#E2E8F0"
+COLOR_HOVER = "#93C5FD"
+COLOR_ACCEPT = "#34D399"
+COLOR_REJECT = "#F87171"
+COLOR_BG_IDLE = "#F8FAFC"
+COLOR_BG_HOVER = "#EFF6FF"
 COLOR_TEXT_MAIN = "#1E293B"
-COLOR_TEXT_SUB  = "#64748B"
-COLOR_ACCENT    = "#DC2626"
+COLOR_TEXT_SUB = "#64748B"
+COLOR_ACCENT = "#DC2626"
 
 
 def _is_valid_docx(path: str) -> tuple[bool, str]:
@@ -81,6 +81,7 @@ def _get_file_info(path: str, image_count: int) -> str:
 # 드롭존 위젯
 # ─────────────────────────────────────────────
 
+
 class FileDropZone(QWidget):
     """
     .docx 파일을 받는 드래그&드롭 존.
@@ -92,13 +93,13 @@ class FileDropZone(QWidget):
     """
 
     file_loaded = pyqtSignal(str)
-    file_error  = pyqtSignal(str)
+    file_error = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._hovered    = False
-        self._accepted   = False
-        self._rejected   = False
+        self._hovered = False
+        self._accepted = False
+        self._rejected = False
         self._loaded_path = ""
         self._image_count = 0
 
@@ -118,21 +119,33 @@ class FileDropZone(QWidget):
         self._icon_label = QLabel("📄", self)
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._icon_label.setFont(QFont("Arial", 36))
+        self._icon_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+        )
 
         self._main_label = QLabel("여기에 .docx 파일을 끌어다 놓으세요", self)
         self._main_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._main_label.setFont(QFont("Arial", 13, QFont.Weight.Bold))
         self._main_label.setStyleSheet(f"color: {COLOR_TEXT_MAIN};")
+        self._main_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+        )
 
         self._sub_label = QLabel("또는 클릭하여 파일을 선택하세요", self)
         self._sub_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._sub_label.setFont(QFont("Arial", 10))
         self._sub_label.setStyleSheet(f"color: {COLOR_TEXT_SUB};")
+        self._sub_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+        )
 
         self._info_label = QLabel("", self)
         self._info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._info_label.setFont(QFont("Arial", 9))
         self._info_label.setStyleSheet(f"color: {COLOR_TEXT_SUB};")
+        self._info_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+        )
 
         layout.addStretch()
         layout.addWidget(self._icon_label)
@@ -148,11 +161,11 @@ class FileDropZone(QWidget):
 
     def set_loaded(self, path: str, image_count: int = 0):
         """파일 로드 성공 상태로 전환"""
-        self._loaded_path  = path
-        self._image_count  = image_count
-        self._accepted     = True
-        self._rejected     = False
-        self._hovered      = False
+        self._loaded_path = path
+        self._image_count = image_count
+        self._accepted = True
+        self._rejected = False
+        self._hovered = False
 
         name = Path(path).name
         info = _get_file_info(path, image_count)
@@ -166,9 +179,9 @@ class FileDropZone(QWidget):
 
     def set_error(self, message: str):
         """오류 상태로 전환"""
-        self._accepted  = False
-        self._rejected  = True
-        self._hovered   = False
+        self._accepted = False
+        self._rejected = True
+        self._hovered = False
 
         self._icon_label.setText("⚠️")
         self._main_label.setText("파일을 불러올 수 없습니다")
@@ -181,9 +194,9 @@ class FileDropZone(QWidget):
         """초기 상태로 복원"""
         self._loaded_path = ""
         self._image_count = 0
-        self._accepted    = False
-        self._rejected    = False
-        self._hovered     = False
+        self._accepted = False
+        self._rejected = False
+        self._hovered = False
 
         self._icon_label.setText("📄")
         self._main_label.setText("여기에 .md 또는 .docx 파일을 끌어다 놓으세요")
@@ -227,7 +240,11 @@ class FileDropZone(QWidget):
             border_color = COLOR_IDLE
             border_width = 1
 
-        pen = QPen(QColor(border_color), border_width, Qt.PenStyle.DashLine if not self._accepted else Qt.PenStyle.SolidLine)
+        pen = QPen(
+            QColor(border_color),
+            border_width,
+            Qt.PenStyle.DashLine if not self._accepted else Qt.PenStyle.SolidLine,
+        )
         painter.setPen(pen)
         r = self.rect().adjusted(2, 2, -2, -2)
         painter.drawRoundedRect(r, 12, 12)
