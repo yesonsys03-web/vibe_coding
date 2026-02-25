@@ -41,6 +41,7 @@ from .api_settings_dialog import ApiSettingsDialog
 from .ai_organizer_dialog import AiOrganizerDialog
 from .vault_explorer import VaultExplorer
 from .insight_panel import InsightPanel
+from .structure_doctor import normalize_markdown_structure, inspect_markdown_structure
 from bridge.ai_organizer import generate_draft, inline_edit, generate_toc
 from bridge.vault_indexer import index_document
 import markdown
@@ -492,12 +493,22 @@ class LeftPanel(QWidget):
         self.btn_md_warn = QPushButton("⚠️ 경고")
         self.btn_md_warn.setStyleSheet(btn_style)
 
+        self.btn_md_structure_fix = QPushButton("🧹 구조 정리")
+        self.btn_md_structure_fix.setStyleSheet(btn_style)
+        self.btn_md_structure_fix.setToolTip("제목/문단 구조를 자동 정리")
+
+        self.btn_md_structure_check = QPushButton("🔍 구조 점검")
+        self.btn_md_structure_check.setStyleSheet(btn_style)
+        self.btn_md_structure_check.setToolTip("제목 레벨/중복/점프 검사")
+
         toolbar_layout.addWidget(self.btn_md_h1)
         toolbar_layout.addWidget(self.btn_md_h2)
         toolbar_layout.addWidget(self.btn_md_bold)
         toolbar_layout.addWidget(self.btn_md_quote)
         toolbar_layout.addWidget(self.btn_md_tip)
         toolbar_layout.addWidget(self.btn_md_warn)
+        toolbar_layout.addWidget(self.btn_md_structure_fix)
+        toolbar_layout.addWidget(self.btn_md_structure_check)
         toolbar_layout.addStretch()
 
         tab2_layout.addLayout(toolbar_layout)
@@ -785,6 +796,13 @@ class MainWindow(QMainWindow):
         self._left.btn_md_warn.clicked.connect(
             lambda: self._insert_md_snippet("> [Warning] ", "")
         )
+        self._left.btn_md_structure_fix.clicked.connect(
+            self._on_structure_normalize_clicked
+        )
+        self._left.btn_md_structure_check.clicked.connect(
+            self._on_structure_check_clicked
+        )
+        self._right.structure_issue_selected.connect(self._on_structure_issue_selected)
 
         # Connect InsightPanel send button to inject checked files from VaultExplorer
         self.insight_panel.send_requested.connect(self._on_insight_send_clicked)
@@ -895,6 +913,75 @@ class MainWindow(QMainWindow):
         </style>
         """
         self._left.text_preview.setHtml(css + html)
+
+    def _on_structure_normalize_clicked(self):
+        src = self._left.text_editor.toPlainText()
+        if not src.strip():
+            QMessageBox.information(self, "구조 정리", "정리할 원고가 없습니다.")
+            return
+
+        normalized, report = normalize_markdown_structure(src)
+        changes = report.get("changes", {})
+
+        if normalized != src:
+            self._left.text_editor.setPlainText(normalized)
+
+        self._right.set_structure_issues(report.get("issue_items", []))
+
+        msg = (
+            f"구조 점수: {report.get('score', 0)}\n"
+            f"- 제목 정규화: {changes.get('heading_normalized', 0)}\n"
+            f"- 빈 제목 보정: {changes.get('empty_heading_filled', 0)}\n"
+            f"- 빈 줄 정리: {changes.get('blankline_compacted', 0)}\n"
+            f"- 제목 승격: {changes.get('title_promoted', 0)}"
+        )
+        QMessageBox.information(self, "구조 자동 정리 완료", msg)
+        self._status.showMessage("구조 자동 정리 적용 완료", 4000)
+
+    def _on_structure_check_clicked(self):
+        src = self._left.text_editor.toPlainText()
+        if not src.strip():
+            QMessageBox.information(self, "구조 점검", "점검할 원고가 없습니다.")
+            return
+
+        report = inspect_markdown_structure(src)
+        self._right.set_structure_issues(report.get("issue_items", []))
+        level = report.get("heading_levels", {})
+        issues = report.get("issues", [])
+        suggestions = report.get("suggestions", [])
+
+        issue_lines = (
+            "\n".join([f"- {x}" for x in issues[:6]])
+            if issues
+            else "- 발견된 문제 없음"
+        )
+        suggestion_lines = (
+            "\n".join([f"- {x}" for x in suggestions[:3]])
+            if suggestions
+            else "- 추가 제안 없음"
+        )
+
+        msg = (
+            f"구조 점수: {report.get('score', 0)}\n"
+            f"제목 수: {report.get('heading_count', 0)} (H1 {level.get('h1', 0)} / H2 {level.get('h2', 0)} / "
+            f"H3 {level.get('h3', 0)} / H4 {level.get('h4', 0)} / H5 {level.get('h5', 0)})\n\n"
+            f"[문제]\n{issue_lines}\n\n"
+            f"[권장]\n{suggestion_lines}"
+        )
+        QMessageBox.information(self, "문단 구조 점검 결과", msg)
+        self._status.showMessage("문단 구조 점검 완료", 4000)
+
+    def _on_structure_issue_selected(self, line: int):
+        editor = self._left.text_editor
+        doc = editor.document()
+        block = doc.findBlockByLineNumber(max(line - 1, 0))
+        if not block.isValid():
+            return
+
+        cursor = editor.textCursor()
+        cursor.setPosition(block.position())
+        editor.setTextCursor(cursor)
+        editor.setFocus()
 
     def _on_vault_file_selected(self, path: str):
         self._active_vault_file = path

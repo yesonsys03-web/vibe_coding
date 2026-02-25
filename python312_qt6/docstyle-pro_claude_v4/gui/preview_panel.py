@@ -20,8 +20,16 @@ from pathlib import Path
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath
 from PyQt6.QtWidgets import (
-    QFileDialog, QFrame, QHBoxLayout, QLabel,
-    QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+    QListWidget,
+    QListWidgetItem,
 )
 
 from .template_selector import TEMPLATES
@@ -30,6 +38,7 @@ from .template_selector import TEMPLATES
 # ─────────────────────────────────────────────
 # 색상 팔레트 위젯
 # ─────────────────────────────────────────────
+
 
 class ColorPalette(QWidget):
     """템플릿 핵심 색상 5개를 가로로 표시"""
@@ -52,7 +61,7 @@ class ColorPalette(QWidget):
         W = self.width()
         H = self.height()
         sw = W // len(self._colors)
-        
+
         # 전체 둥근 테두리 경로
         path = QPainterPath()
         path.addRoundedRect(0, 0, W, H, 6, 6)
@@ -62,7 +71,7 @@ class ColorPalette(QWidget):
             x = i * sw
             w = sw if i < len(self._colors) - 1 else W - x
             p.fillRect(x, 0, w, H, QColor(color))
-        
+
         # 연한 외곽선
         p.setClipping(False)
         p.setPen(QColor(0, 0, 0, 20))
@@ -73,6 +82,7 @@ class ColorPalette(QWidget):
 # ─────────────────────────────────────────────
 # 통계 카드
 # ─────────────────────────────────────────────
+
 
 def _stat_card(label: str, value: str, accent: str) -> QWidget:
     card = QFrame()
@@ -95,7 +105,9 @@ def _stat_card(label: str, value: str, accent: str) -> QWidget:
 
     key_lbl = QLabel(label)
     key_lbl.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-    key_lbl.setStyleSheet("color: #94A3B8; border: none; background: transparent; text-transform: uppercase;")
+    key_lbl.setStyleSheet(
+        "color: #94A3B8; border: none; background: transparent; text-transform: uppercase;"
+    )
     key_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
     lay.addWidget(val_lbl)
@@ -107,6 +119,7 @@ def _stat_card(label: str, value: str, accent: str) -> QWidget:
 # 미리보기 패널
 # ─────────────────────────────────────────────
 
+
 class PreviewPanel(QWidget):
     """
     오른쪽 사이드 패널.
@@ -114,10 +127,13 @@ class PreviewPanel(QWidget):
     변환 후: 결과 통계 + 열기 버튼
     """
 
+    structure_issue_selected = pyqtSignal(int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._output_path = ""
         self._current_tpl = TEMPLATES[0]
+        self._structure_issue_items: list[dict] = []
         self._build_ui()
         self._show_idle()
 
@@ -167,6 +183,35 @@ class PreviewPanel(QWidget):
         lay.addStretch()
 
         self._layout.addWidget(container)
+        self._layout.addWidget(self._make_structure_issue_panel())
+        self.set_structure_issues(self._structure_issue_items)
+
+    def _make_structure_issue_panel(self) -> QWidget:
+        box = QFrame()
+        box.setStyleSheet(
+            "QFrame { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; }"
+        )
+
+        lay = QVBoxLayout(box)
+        lay.setContentsMargins(10, 8, 10, 8)
+        lay.setSpacing(6)
+
+        title = QLabel("문단 구조 점검 결과")
+        title.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+        title.setStyleSheet("color: #334155;")
+
+        self._structure_issue_list = QListWidget()
+        self._structure_issue_list.setStyleSheet(
+            "QListWidget { border: 1px solid #CBD5E1; border-radius: 4px; background: #FFFFFF; }"
+            "QListWidget::item { padding: 6px 8px; color: #334155; }"
+            "QListWidget::item:selected { background: #DBEAFE; color: #1E3A8A; }"
+        )
+        self._structure_issue_list.setMaximumHeight(170)
+        self._structure_issue_list.itemClicked.connect(self._on_structure_issue_clicked)
+
+        lay.addWidget(title)
+        lay.addWidget(self._structure_issue_list)
+        return box
 
     def _show_result(
         self,
@@ -226,11 +271,13 @@ class PreviewPanel(QWidget):
         self._layout.addWidget(fname_lbl)
 
         # ── 버튼 ─────────────────────────────
-        self._open_btn = self._make_btn("📂  파일 위치 열기",    "#64748B", primary=False)
+        self._open_btn = self._make_btn("📂  파일 위치 열기", "#64748B", primary=False)
 
         self._open_btn.clicked.connect(self._on_open)
 
         self._layout.addWidget(self._open_btn)
+        self._layout.addWidget(self._make_structure_issue_panel())
+        self.set_structure_issues(self._structure_issue_items)
         self._layout.addStretch()
 
     def _make_btn(self, text: str, color: str, primary: bool) -> QPushButton:
@@ -272,6 +319,11 @@ class PreviewPanel(QWidget):
         else:
             subprocess.Popen(["xdg-open", folder])
 
+    def _on_structure_issue_clicked(self, item: QListWidgetItem):
+        line = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(line, int):
+            self.structure_issue_selected.emit(line)
+
     # ── 공개 메서드 ───────────────────────────
 
     def show_result(
@@ -286,3 +338,16 @@ class PreviewPanel(QWidget):
     def reset(self):
         self._output_path = ""
         self._show_idle()
+
+    def set_structure_issues(self, issue_items: list[dict]):
+        self._structure_issue_items = list(issue_items or [])
+        if not hasattr(self, "_structure_issue_list"):
+            return
+
+        self._structure_issue_list.clear()
+        for issue in self._structure_issue_items[:20]:
+            line = int(issue.get("line") or 1)
+            msg = str(issue.get("message") or f"라인 {line}")
+            item = QListWidgetItem(msg)
+            item.setData(Qt.ItemDataRole.UserRole, line)
+            self._structure_issue_list.addItem(item)
