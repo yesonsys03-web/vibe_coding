@@ -1,0 +1,30 @@
+[project]
+name = "docstyle-pro-claude-v4"
+version = "1.2.1"
+description = "DocStyle Pro desktop and web API"
+readme = "WEB_API.md"
+requires-python = ">=3.12"
+dependencies = [
+  "python-docx>=1.1.0",
+  "lxml>=5.0.0",
+  "PyQt6>=6.0.0",
+  "Pillow>=10.0.0",
+  "google-auth-oauthlib",
+  "google-api-python-client",
+  "chromadb",
+  "openai",
+  "anthropic",
+  "google-genai",
+  "markdown",
+  "onnxruntime<=1.19.2",
+  "fastapi>=0.115.0",
+  "uvicorn>=0.30.0",
+  "python-multipart>=0.0.9",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+package = false
