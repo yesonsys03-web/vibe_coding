@@ -29,6 +29,9 @@ venv.bak/
 node_modules/
 npm-debug.log
 yarn-error.log
+web_frontend/node_modules/
+web_frontend/.next/
+web_frontend/.env.local
 
 # App specific
 temp/
