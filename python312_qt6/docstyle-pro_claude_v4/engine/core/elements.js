@@ -72,7 +72,7 @@ const caption = (text, C) =>
 // ─────────────────────────────────────────────
 const chapterTitle = (phase, title, sub, C) => {
   const isMinimal = C.TYPE === "MINIMAL";
-  const isTech = C.TYPE === "TECH";
+  const isNordic = C.NAME === "Nordic Blue";
 
   if (isMinimal) {
     return [
@@ -89,40 +89,50 @@ const chapterTitle = (phase, title, sub, C) => {
     ];
   }
 
+  // Nordic Blue: Add a small accent circle/point logic effectively via a leading bullet or special run
+  // Note: True circles are hard in docx-js without VML/Drawing, so we use a large bullet character
+  const mainChildren = [run(title, { bold: true, size: 34, color: C.WHITE }, C)];
+  if (isNordic) {
+    mainChildren.unshift(run("●  ", { size: 24, color: C.ACCENT }, C));
+  }
+
   return [
     new Paragraph({
       shading: { fill: C.BG_HEAD, type: ShadingType.CLEAR },
-      spacing: { before: 0, after: 0 },
+      spacing: { before: isNordic ? 400 : 0, after: 0 },
       indent: { left: 240, right: 240 },
       border: { bottom: thickBdr(C.ACCENT, 12), top: noBdr, left: noBdr, right: noBdr },
-      children: [run(phase, { size: 20, color: C.BLUE2, bold: true }, C)],
+      children: [run(phase || "", { size: 20, color: C.BLUE2, bold: true }, C)],
     }),
     new Paragraph({
       shading: { fill: C.BG_HEAD, type: ShadingType.CLEAR },
       spacing: { before: 0, after: 40 },
       indent: { left: 240, right: 240 },
-      children: [run(title, { bold: true, size: 34, color: C.WHITE }, C)],
+      children: mainChildren,
     }),
     new Paragraph({
       shading: { fill: C.BG_HEAD, type: ShadingType.CLEAR },
       spacing: { before: 0, after: 160 },
       indent: { left: 240, right: 240 },
-      children: [run(sub, { size: 20, color: C.GRAY3, italics: true }, C)],
+      children: [run(sub || "", { size: 20, color: C.GRAY3, italics: true }, C)],
     }),
     empty(100),
   ];
 };
 
 const h1 = (num, title, C) => {
+  const isNordic = C.NAME === "Nordic Blue";
+  const accentColor = isNordic ? C.ACCENT : C.ACCENT; // Could vary if needed
+
   return new Paragraph({
     spacing: { before: 480, after: 120 },
     border: {
-      bottom: solidBdr(C.RULE, 2),
-      left: noBdr,
+      bottom: { style: BorderStyle.SINGLE, size: 2, color: C.RULE, space: 12 },
+      left: isNordic ? { style: BorderStyle.SINGLE, size: 24, color: C.ACCENT, space: 12 } : noBdr,
       top: noBdr,
       right: noBdr,
     },
-    indent: { left: 0 },
+    indent: { left: isNordic ? 400 : 0 },
     children: [
       run(`${num}.  `, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H1 || 32, color: C.ACCENT }, C),
       run(title, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H1 || 32, color: C.DARK }, C),
@@ -130,12 +140,17 @@ const h1 = (num, title, C) => {
   });
 };
 
-const h2 = (text, C) =>
-  new Paragraph({
+const h2 = (text, C) => {
+  const isNordic = C.NAME === "Nordic Blue";
+  return new Paragraph({
     spacing: { before: 360, after: 100 },
     border: { bottom: noBdr },
-    children: [run(text, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H2 || 26, color: C.BLUE2 }, C)],
+    children: [
+      isNordic ? run("•  ", { color: C.ACCENT, bold: true }, C) : run(""),
+      run(text, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H2 || 26, color: C.BLUE2 }, C)
+    ],
   });
+};
 
 const h3 = (text, C) =>
   new Paragraph({
