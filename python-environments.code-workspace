@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"name": "🐍 3.10 + Qt5",
+			"path": "python310_qt5"
+		},
+		{
+			"name": "🐍 3.10 + Qt6",
+			"path": "python310_qt6"
+		},
+		{
+			"name": "🐍 3.12 + Qt5",
+			"path": "python312_qt5"
+		},
+		{
+			"name": "🐍 3.12 + Qt6",
+			"path": "python312_qt6"
+		},
+		{
+			"name": "🎡 VibeCoder Playground",
+			"path": "vibecoder-playground"
+		}
+	],
+	"settings": {
+		"python.terminal.activateEnvInCurrentTerminal": true,
+		"python.analysis.autoImportCompletions": true
+	}
+}
