@@ -10,7 +10,7 @@
 const {
   Paragraph, TextRun, Table, TableRow, TableCell, ImageRun,
   AlignmentType, BorderStyle, WidthType, ShadingType, VerticalAlign,
-  LevelFormat,
+  LevelFormat, SectionType,
 } = require("docx");
 const fs = require("fs");
 const path = require("path");
@@ -52,11 +52,68 @@ const hrPara = (color, sz = 4) =>
 const bodyText = (text, indent = 0, C) => {
   const isMinimal = C.TYPE === "MINIMAL";
   const align = C.JUSTIFY ? AlignmentType.JUSTIFY : AlignmentType.LEFT;
+  const before = C.BODY_BEFORE !== undefined ? C.BODY_BEFORE : (isMinimal ? 60 : 120);
+  const after = C.BODY_AFTER !== undefined ? C.BODY_AFTER : (isMinimal ? 80 : 160);
   return new Paragraph({
-    spacing: { before: isMinimal ? 60 : 120, after: isMinimal ? 80 : 160, line: C.LINE_SPACING || 360 },
+    spacing: { before, after, line: C.LINE_SPACING || 360 },
     indent: { left: indent },
     alignment: align,
     children: [run(text, { size: C.SIZE_BODY || 20, color: C.TEXT }, C)],
+  });
+};
+
+const leadParagraph = (text, C) => {
+  const safe = (text || "").trim();
+  if (!safe) return empty(20);
+
+  const first = safe[0];
+  const rest = safe.slice(1);
+  const leadSize = Math.max((C.SIZE_BODY || 20) + 8, 28);
+
+  return new Paragraph({
+    spacing: { before: C.LEAD_BEFORE || 180, after: C.LEAD_AFTER || 180, line: C.LINE_SPACING || 360 },
+    border: { left: solidBdr(C.ACCENT, 10), top: noBdr, bottom: noBdr, right: noBdr },
+    indent: { left: 220 },
+    alignment: C.JUSTIFY ? AlignmentType.JUSTIFY : AlignmentType.LEFT,
+    children: [
+      run(first, { size: leadSize, bold: true, color: C.ACCENT }, C),
+      run(rest, { size: (C.SIZE_BODY || 20) + 2, color: C.DARK }, C),
+    ],
+  });
+};
+
+const sectionDivider = (title, C) => {
+  const label = (title || "").trim();
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: noBdr,
+      left: noBdr,
+      right: noBdr,
+      bottom: { style: BorderStyle.SINGLE, size: 10, color: C.ACCENT },
+      insideHorizontal: noBdr,
+      insideVertical: noBdr,
+    },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            shading: { fill: C.BG_BOX || "F8FAFC", type: ShadingType.CLEAR },
+            margins: { left: 260, right: 260, top: 120, bottom: 120 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.LEFT,
+                children: [
+                  run("SECTION", { size: 16, bold: true, color: C.GRAY2 }, C),
+                  run(label ? `  ·  ${label}` : "", { size: 18, bold: true, color: C.DARK }, C),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
   });
 };
 
@@ -83,40 +140,52 @@ const chapterTitle = (phase, title, sub, C) => {
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [run(sub, { size: 24, color: C.GRAY, italics: true }, C)],
+        children: [run(sub || "", { size: 24, color: C.GRAY, italics: true }, C)],
       }),
       empty(600),
     ];
   }
 
-  // Nordic Blue: Add a small accent circle/point logic effectively via a leading bullet or special run
-  // Note: True circles are hard in docx-js without VML/Drawing, so we use a large bullet character
-  const mainChildren = [run(title, { bold: true, size: 34, color: C.WHITE }, C)];
-  if (isNordic) {
-    mainChildren.unshift(run("●  ", { size: 24, color: C.ACCENT }, C));
-  }
-
-  return [
+  // ── High Fidelity Block Header (Table based)
+  const headerContent = [
     new Paragraph({
-      shading: { fill: C.BG_HEAD, type: ShadingType.CLEAR },
-      spacing: { before: isNordic ? 400 : 0, after: 0 },
-      indent: { left: 240, right: 240 },
-      border: { bottom: thickBdr(C.ACCENT, 12), top: noBdr, left: noBdr, right: noBdr },
+      spacing: { before: isNordic ? 200 : 100, after: 0 },
       children: [run(phase || "", { size: 20, color: C.BLUE2, bold: true }, C)],
     }),
     new Paragraph({
-      shading: { fill: C.BG_HEAD, type: ShadingType.CLEAR },
-      spacing: { before: 0, after: 40 },
-      indent: { left: 240, right: 240 },
-      children: mainChildren,
+      spacing: { before: 100, after: 40 },
+      children: [
+        isNordic ? run("●  ", { size: 24, color: C.ACCENT }, C) : run(""),
+        run(title, { bold: true, size: 34, color: C.WHITE }, C),
+      ],
     }),
     new Paragraph({
-      shading: { fill: C.BG_HEAD, type: ShadingType.CLEAR },
-      spacing: { before: 0, after: 160 },
-      indent: { left: 240, right: 240 },
+      spacing: { before: 0, after: 200 },
       children: [run(sub || "", { size: 20, color: C.GRAY3, italics: true }, C)],
     }),
-    empty(100),
+  ];
+
+  return [
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        bottom: { style: BorderStyle.SINGLE, size: 24, color: C.ACCENT },
+        top: noBdr, left: noBdr, right: noBdr,
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              shading: { fill: C.BG_HEAD, type: ShadingType.CLEAR },
+              margins: { left: 400, right: 400, top: 400, bottom: 400 },
+              verticalAlign: VerticalAlign.CENTER,
+              children: headerContent,
+            }),
+          ],
+        }),
+      ],
+    }),
+    empty(200),
   ];
 };
 
@@ -125,7 +194,7 @@ const h1 = (num, title, C) => {
   const accentColor = isNordic ? C.ACCENT : C.ACCENT; // Could vary if needed
 
   return new Paragraph({
-    spacing: { before: 480, after: 120 },
+    spacing: { before: C.H1_BEFORE || 480, after: C.H1_AFTER || 120 },
     border: {
       bottom: { style: BorderStyle.SINGLE, size: 2, color: C.RULE, space: 12 },
       left: isNordic ? { style: BorderStyle.SINGLE, size: 24, color: C.ACCENT, space: 12 } : noBdr,
@@ -143,7 +212,7 @@ const h1 = (num, title, C) => {
 const h2 = (text, C) => {
   const isNordic = C.NAME === "Nordic Blue";
   return new Paragraph({
-    spacing: { before: 360, after: 100 },
+    spacing: { before: C.H2_BEFORE || 360, after: C.H2_AFTER || 100 },
     border: { bottom: noBdr },
     children: [
       isNordic ? run("•  ", { color: C.ACCENT, bold: true }, C) : run(""),
@@ -154,7 +223,7 @@ const h2 = (text, C) => {
 
 const h3 = (text, C) =>
   new Paragraph({
-    spacing: { before: 240, after: 80 },
+    spacing: { before: C.H3_BEFORE || 240, after: C.H3_AFTER || 80 },
     children: [run(text, { font: C.H_FONT || C.FONT || "Arial", bold: true, size: C.SIZE_H3 || 22, color: C.DARK }, C)],
   });
 
@@ -211,19 +280,32 @@ const quoteBox = (text, C) =>
     children: [run(text, { size: 20, color: C.GRAY, italics: true }, C)],
   });
 
-const insightBox = (text, C) =>
-  new Paragraph({
+const insightBox = (text, C) => {
+  const isFormal = C.TYPE === "FORMAL" || C.TYPE === "BUSINESS" || C.TYPE === "LEGAL" || C.TYPE === "MEDICAL";
+  return new Paragraph({
     shading: { fill: C.BG_RED || "FEF2F2", type: ShadingType.CLEAR },
-    border: { left: { style: BorderStyle.SINGLE, size: 8, color: C.ACCENT, space: 12 }, top: noBdr, bottom: noBdr, right: noBdr },
+    border: {
+      left: { style: BorderStyle.SINGLE, size: 8, color: C.ACCENT, space: 12 },
+      top: isFormal ? { style: BorderStyle.DASHED, size: 2, color: C.BOX_BORDER, space: 12 } : noBdr,
+      bottom: isFormal ? { style: BorderStyle.DASHED, size: 2, color: C.BOX_BORDER, space: 12 } : noBdr,
+      right: isFormal ? { style: BorderStyle.DASHED, size: 2, color: C.BOX_BORDER, space: 12 } : noBdr
+    },
     spacing: { before: 160, after: 160 },
     indent: { left: 280, right: 240 },
     children: [run(text, { size: 20, color: C.DARK, bold: true }, C)],
   });
+};
 
-const tipBox = (text, C) =>
-  new Paragraph({
+const tipBox = (text, C) => {
+  const isFormal = C.TYPE === "FORMAL" || C.TYPE === "BUSINESS" || C.TYPE === "LEGAL" || C.TYPE === "MEDICAL";
+  return new Paragraph({
     shading: { fill: C.BG_GREEN || "F0FDF4", type: ShadingType.CLEAR },
-    border: { left: { style: BorderStyle.SINGLE, size: 8, color: C.GREEN, space: 12 }, top: noBdr, bottom: noBdr, right: noBdr },
+    border: {
+      left: { style: BorderStyle.SINGLE, size: 8, color: C.GREEN, space: 12 },
+      top: isFormal ? { style: BorderStyle.DASHED, size: 2, color: C.BOX_BORDER, space: 12 } : noBdr,
+      bottom: isFormal ? { style: BorderStyle.DASHED, size: 2, color: C.BOX_BORDER, space: 12 } : noBdr,
+      right: isFormal ? { style: BorderStyle.DASHED, size: 2, color: C.BOX_BORDER, space: 12 } : noBdr
+    },
     spacing: { before: 120, after: 120 },
     indent: { left: 280, right: 240 },
     children: [
@@ -231,6 +313,7 @@ const tipBox = (text, C) =>
       run(text, { size: 20, color: C.DARK }, C),
     ],
   });
+};
 
 const warningBox = (text, C) =>
   new Paragraph({
@@ -243,6 +326,23 @@ const warningBox = (text, C) =>
       run(text, { size: 20, color: C.DARK }, C),
     ],
   });
+
+const terminalBox = (text, C) => [
+  new Paragraph({
+    shading: { fill: "1E293B", type: ShadingType.CLEAR },
+    border: { top: solidBdr(C.ACCENT, 4), bottom: noBdr, left: solidBdr(C.ACCENT, 4), right: solidBdr(C.ACCENT, 4) },
+    spacing: { before: 160, after: 0 },
+    indent: { left: 240, right: 240 },
+    children: [run(">_ Terminal", { bold: true, size: 18, color: C.ACCENT }, C)],
+  }),
+  new Paragraph({
+    shading: { fill: "1E293B", type: ShadingType.CLEAR },
+    border: { top: noBdr, bottom: solidBdr(C.ACCENT, 4), left: solidBdr(C.ACCENT, 4), right: solidBdr(C.ACCENT, 4) },
+    spacing: { before: 60, after: 160 },
+    indent: { left: 280, right: 240 },
+    children: [run(text, { size: 20, color: "4ade80", font: "Courier New" }, C)],
+  })
+];
 
 const qaBlock = (q, answers, C) => [
   new Paragraph({
@@ -453,9 +553,9 @@ module.exports = {
   PAGE_CONTENT_WIDTH, MAX_IMG_EMU_W,
   noBdr, solidBdr, thickBdr,
   run, para, empty, hrPara,
-  bodyText, caption,
+  bodyText, leadParagraph, sectionDivider, caption,
   chapterTitle, h1, h2, h3, coverPage,
-  quoteBox, insightBox, tipBox, warningBox, qaBlock, promptBox, conclusionBox,
+  quoteBox, insightBox, tipBox, warningBox, terminalBox, qaBlock, promptBox, conclusionBox,
   bulletList,
   imgPlaceholder, imgReal,
   makeCell, table2col, table3col,

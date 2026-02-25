@@ -30,6 +30,7 @@ from parser.models import (
 # 요소별 직렬화
 # ─────────────────────────────────────────────
 
+
 def _serialize_element(el: DocumentElement) -> dict | None:
     """
     dataclass 하나를 JSON-직렬화 가능한 dict 로 변환.
@@ -41,10 +42,10 @@ def _serialize_element(el: DocumentElement) -> dict | None:
 
         if t == ElementType.CHAPTER_TITLE.value:
             return {
-                "type":  "chapter_title",
+                "type": "chapter_title",
                 "phase": el.phase,
-                "text":  el.text,
-                "sub":   el.sub,
+                "text": el.text,
+                "sub": el.sub,
             }
 
         if t == ElementType.H1.value:
@@ -87,16 +88,16 @@ def _serialize_element(el: DocumentElement) -> dict | None:
 
     if isinstance(el, QAElement):
         return {
-            "type":     "qa",
+            "type": "qa",
             "question": el.question,
-            "answers":  el.answers,
+            "answers": el.answers,
         }
 
     if isinstance(el, PromptElement):
         return {
-            "type":  "prompt",
+            "type": "prompt",
             "label": el.label,
-            "text":  el.text,
+            "text": el.text,
         }
 
     if isinstance(el, ConclusionElement):
@@ -107,11 +108,11 @@ def _serialize_element(el: DocumentElement) -> dict | None:
 
     if isinstance(el, ImageElement):
         return {
-            "type":       "image",
-            "filename":   el.filename,
-            "width_emu":  el.width_emu,
+            "type": "image",
+            "filename": el.filename,
+            "width_emu": el.width_emu,
             "height_emu": el.height_emu,
-            "caption":    el.caption,
+            "caption": el.caption,
         }
 
     if isinstance(el, TableElement):
@@ -123,9 +124,9 @@ def _serialize_element(el: DocumentElement) -> dict | None:
                 "rows": el.rows,
             }
         return {
-            "type":    "table3",
+            "type": "table3",
             "headers": el.headers,
-            "rows":    el.rows,
+            "rows": el.rows,
         }
 
     if isinstance(el, HRElement):
@@ -141,10 +142,11 @@ def _serialize_element(el: DocumentElement) -> dict | None:
 # 메인 직렬화 함수
 # ─────────────────────────────────────────────
 
+
 def build_json(
     parsed: ParsedDocument,
     template_id: str = "01",
-    custom_settings: dict = None,
+    custom_settings: dict | None = None,
     output_path: str | None = None,
 ) -> str:
     """
@@ -161,6 +163,8 @@ def build_json(
     -------
     JSON 문자열
     """
+    custom_settings = custom_settings or {}
+
     serialized_elements = []
     for el in parsed.elements:
         d = _serialize_element(el)
@@ -176,19 +180,19 @@ def build_json(
     page_numbers = custom_settings.get("page_numbers", True)
 
     payload = {
-        "template":      template_id,
+        "template": template_id,
         "custom_settings": custom_settings or {},
         "meta": {
-            "title":   title,
+            "title": title,
             "subtitle": subtitle,
-            "author":  author,
+            "author": author,
             "chapter": parsed.meta.chapter,
             "auto_toc": auto_toc,
             "header_text": header_text,
             "page_numbers": page_numbers,
         },
         "image_base_dir": parsed.image_base_dir,
-        "elements":       serialized_elements,
+        "elements": serialized_elements,
     }
 
     json_str = json.dumps(payload, ensure_ascii=False, indent=2)
